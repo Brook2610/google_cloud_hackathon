@@ -23,7 +23,7 @@ steps:
       - "--allow-unauthenticated"
       # MOUNT GCS BUCKET FOR PERSISTENCE (Replace [YOUR_BUCKET_NAME])
       - "--add-volume"
-      - "name=sites_storage,type=cloud-storage,bucket=gcp-hackathon-2"
+      - "name=sites_storage,type=cloud-storage,bucket=[YOUR_BUCKET_NAME]"
       - "--add-volume-mount"
       - "volume=sites_storage,mount-path=/app/sites"
       # ENVIRONMENT VARIABLES
