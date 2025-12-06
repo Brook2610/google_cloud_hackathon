@@ -4,9 +4,9 @@ Manages real-time voice conversation with users to gather website requirements.
 Uses WebSocket to relay audio between browser and Gemini Live API.
 """
 import asyncio
-import base64
 import json
 import os
+import traceback
 from pathlib import Path
 from typing import Optional, Callable
 
@@ -23,9 +23,10 @@ except ImportError:
     pass
 
 
-# Configuration
-MODEL = "gemini-2.5-flash-live-001"
-AUDIO_SAMPLE_RATE = 24000  # Gemini outputs 24kHz audio
+# Configuration - Use the working model from gemini_live_voice.py
+MODEL = "models/gemini-2.5-flash-native-audio-preview-09-2025"
+SEND_SAMPLE_RATE = 16000
+RECEIVE_SAMPLE_RATE = 24000
 
 
 def get_system_prompt(business_name: Optional[str] = None, place_id: Optional[str] = None) -> str:
@@ -62,7 +63,7 @@ When you have gathered enough information, use the submit_website_description to
 
 
 # Tool definition for submitting website description
-SUBMIT_WEBSITE_DESCRIPTION_TOOL = {
+submit_website_description_decl = {
     "name": "submit_website_description",
     "description": "Submit the final website description to start building. Call this after gathering requirements from the user.",
     "parameters": {
@@ -100,8 +101,8 @@ class LiveAssistant:
         self.session = None
         self.client = None
         self._running = False
-        self._session_context = None
         self._receive_task = None
+        self._audio_queue = asyncio.Queue()
         
     async def start(self):
         """Start the live session."""
@@ -109,63 +110,76 @@ class LiveAssistant:
         if not api_key:
             raise RuntimeError("GOOGLE_API_KEY not set")
         
-        self.client = genai.Client(api_key=api_key)
+        print(f"🔑 Using API key: {api_key[:10]}...")
         
-        # Configure session
+        # Use v1beta API version like the working example
+        self.client = genai.Client(
+            http_options={"api_version": "v1beta"},
+            api_key=api_key
+        )
+        
+        # Configure session - matching the working example structure
+        tools = [types.Tool(function_declarations=[submit_website_description_decl])]
+        
         config = types.LiveConnectConfig(
             response_modalities=["AUDIO"],
-            system_instruction=types.Content(
-                parts=[types.Part(text=get_system_prompt(self.business_name, self.place_id))]
-            ),
-            tools=[types.Tool(function_declarations=[
-                types.FunctionDeclaration(
-                    name="submit_website_description",
-                    description="Submit the final website description to start building.",
-                    parameters=types.Schema(
-                        type="OBJECT",
-                        properties={
-                            "description": types.Schema(
-                                type="STRING",
-                                description="Complete description of the website"
-                            )
-                        },
-                        required=["description"]
-                    )
-                )
-            ])],
             speech_config=types.SpeechConfig(
                 voice_config=types.VoiceConfig(
                     prebuilt_voice_config=types.PrebuiltVoiceConfig(voice_name="Aoede")
                 )
-            )
+            ),
+            tools=tools,
+            system_instruction=types.Content(
+                parts=[types.Part.from_text(text=get_system_prompt(self.business_name, self.place_id))],
+                role="system"
+            ),
         )
         
         print(f"🎤 Starting live session with model: {MODEL}")
+        print(f"📋 Config: response_modalities={config.response_modalities}")
         
-        # Use async context manager properly
-        self._session_context = self.client.aio.live.connect(model=MODEL, config=config)
-        self.session = await self._session_context.__aenter__()
+        # Connect using async context manager
+        self._session_ctx = self.client.aio.live.connect(model=MODEL, config=config)
+        self.session = await self._session_ctx.__aenter__()
         
         self._running = True
         print("✅ Live session connected")
         
         # Start receiving responses in background
         self._receive_task = asyncio.create_task(self._receive_loop())
+        print("📡 Receive task started")
+        
+        # Start audio sending loop
+        self._send_task = asyncio.create_task(self._send_audio_loop())
+        print("🎙️ Audio send task started")
+        
+    async def _send_audio_loop(self):
+        """Send queued audio to Gemini."""
+        print("🎙️ Audio send loop running...")
+        while self._running:
+            try:
+                # Wait for audio with timeout to allow checking _running
+                try:
+                    audio_data = await asyncio.wait_for(self._audio_queue.get(), timeout=0.5)
+                except asyncio.TimeoutError:
+                    continue
+                    
+                if audio_data and self.session:
+                    await self.session.send_realtime_input(
+                        audio=types.Blob(
+                            mime_type=f"audio/pcm;rate={SEND_SAMPLE_RATE}",
+                            data=audio_data
+                        )
+                    )
+            except Exception as e:
+                print(f"❌ Error in send audio loop: {e}")
+        print("🎙️ Audio send loop ended")
         
     async def send_audio(self, audio_data: bytes):
-        """Send audio data to Gemini."""
-        if not self.session or not self._running:
+        """Queue audio data to be sent to Gemini."""
+        if not self._running:
             return
-            
-        try:
-            await self.session.send_realtime_input(
-                audio=types.Blob(
-                    mime_type="audio/pcm;rate=16000",
-                    data=audio_data
-                )
-            )
-        except Exception as e:
-            print(f"❌ Error sending audio: {e}")
+        await self._audio_queue.put(audio_data)
             
     async def send_text(self, text: str):
         """Send text message to Gemini."""
@@ -173,74 +187,118 @@ class LiveAssistant:
             return
             
         try:
+            print(f"📝 Sending text: {text[:50]}...")
             await self.session.send_client_content(
-                turns=types.Content(parts=[types.Part(text=text)])
+                turns={"role": "user", "parts": [{"text": text}]},
+                turn_complete=True
             )
         except Exception as e:
             print(f"❌ Error sending text: {e}")
+            traceback.print_exc()
             
     async def _receive_loop(self):
         """Receive and process responses from Gemini."""
+        print("📡 Starting receive loop...")
         try:
-            async for response in self.session.receive():
-                if not self._running:
-                    break
+            while self._running:
+                print("📡 Waiting for response turn...")
+                turn = self.session.receive()
+                
+                async for response in turn:
+                    if not self._running:
+                        print("📡 Receive loop: not running, breaking")
+                        break
                     
-                # Handle audio data
-                if response.data is not None:
-                    if self.on_audio:
-                        self.on_audio(response.data)
-                        
-                # Handle server content (transcripts)
-                if response.server_content:
-                    content = response.server_content
+                    print(f"📡 Got response: {type(response).__name__}")
                     
-                    # Check for model turn (AI speaking)
-                    if hasattr(content, 'model_turn') and content.model_turn:
-                        for part in content.model_turn.parts or []:
-                            if hasattr(part, 'text') and part.text:
-                                if self.on_transcript:
-                                    self.on_transcript("assistant", part.text)
+                    # Handle audio data
+                    audio_chunks = []
+                    
+                    sc = getattr(response, "server_content", None)
+                    if sc:
+                        print(f"  📡 server_content: turn_complete={getattr(sc, 'turn_complete', None)}")
+                    
+                    model_turn = getattr(sc, "model_turn", None) if sc else None
+                    
+                    if model_turn:
+                        print(f"  📡 model_turn has {len(getattr(model_turn, 'parts', []) or [])} parts")
+                        for part in getattr(model_turn, "parts", []) or []:
+                            inline = getattr(part, "inline_data", None)
+                            if inline and getattr(inline, "data", None):
+                                audio_chunks.append(inline.data)
+                                print(f"  🔊 Got inline audio: {len(inline.data)} bytes")
+                    
+                    # Also check direct data field
+                    if response.data:
+                        audio_chunks.append(response.data)
+                        print(f"  🔊 Got direct audio: {len(response.data)} bytes")
+                    
+                    for chunk in audio_chunks:
+                        if chunk and self.on_audio:
+                            self.on_audio(chunk)
+                    
+                    # Handle transcripts
+                    if sc and getattr(sc, "output_transcription", None):
+                        transcript = sc.output_transcription
+                        if getattr(transcript, "text", None):
+                            print(f"  💬 Transcript: {transcript.text}")
+                            if self.on_transcript:
+                                self.on_transcript("assistant", transcript.text)
                         
-                # Handle tool calls
-                if response.tool_call:
-                    for fc in response.tool_call.function_calls or []:
-                        print(f"🔧 Tool call: {fc.name}")
+                    # Handle tool calls
+                    if getattr(response, "tool_call", None):
+                        tc = response.tool_call
+                        print(f"  🔧 Tool call received")
                         
-                        if fc.name == "submit_website_description":
-                            args = {}
-                            if hasattr(fc, 'args'):
-                                args = dict(fc.args) if fc.args else {}
-                            
-                            if self.on_tool_call:
-                                self.on_tool_call(fc.name, args)
+                        # Handle function_calls list
+                        if getattr(tc, "function_calls", None):
+                            for fc in tc.function_calls:
+                                fname = getattr(fc, "name", None)
+                                fargs = getattr(fc, "args", {}) or {}
                                 
-                            # Send tool response
-                            await self.session.send_tool_response(
-                                function_responses=[
-                                    types.FunctionResponse(
-                                        id=fc.id,
-                                        name=fc.name,
-                                        response={"result": "ok", "message": "Website building started"}
+                                if isinstance(fargs, str):
+                                    try:
+                                        fargs = json.loads(fargs)
+                                    except Exception:
+                                        pass
+                                
+                                print(f"  🔧 Tool call: {fname} with args {fargs}")
+                                
+                                if fname == "submit_website_description":
+                                    if self.on_tool_call:
+                                        self.on_tool_call(fname, dict(fargs) if fargs else {})
+                                    
+                                    # Send tool response
+                                    await self.session.send_tool_response(
+                                        function_responses=[
+                                            types.FunctionResponse(
+                                                id=getattr(fc, "id", None),
+                                                name=fname,
+                                                response={"result": "ok", "message": "Website building started"}
+                                            )
+                                        ]
                                     )
-                                ]
-                            )
+                                    
+                                    # End session after tool call
+                                    await asyncio.sleep(2)
+                                    await self.stop()
+                                    return
+                
+                print("📡 Turn complete, waiting for next turn...")
                             
-                            # End session after tool call
-                            await asyncio.sleep(2)
-                            await self.stop()
-                            return
-                            
+        except asyncio.CancelledError:
+            print("📡 Receive loop cancelled")
         except Exception as e:
             print(f"❌ Receive loop error: {e}")
-            import traceback
             traceback.print_exc()
         finally:
+            print("📡 Receive loop ended")
             if self.on_end:
                 self.on_end()
                 
     async def stop(self):
         """Stop the live session."""
+        print("🛑 Stopping live session...")
         self._running = False
         
         if self._receive_task:
@@ -250,11 +308,18 @@ class LiveAssistant:
             except asyncio.CancelledError:
                 pass
         
-        if self._session_context:
+        if hasattr(self, '_send_task') and self._send_task:
+            self._send_task.cancel()
             try:
-                await self._session_context.__aexit__(None, None, None)
-            except Exception:
+                await self._send_task
+            except asyncio.CancelledError:
                 pass
+        
+        if hasattr(self, '_session_ctx') and self._session_ctx:
+            try:
+                await self._session_ctx.__aexit__(None, None, None)
+            except Exception as e:
+                print(f"❌ Error closing session: {e}")
                 
         print("🛑 Live session stopped")
 

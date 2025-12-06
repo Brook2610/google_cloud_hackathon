@@ -163,11 +163,20 @@ def create_site_scaffold(site_dir: Path):
 
 @app.get("/", response_class=HTMLResponse)
 async def root():
-    """Serve the main application page."""
+    """Serve the main voice-based application page."""
     index_path = Path(__file__).parent / "index.html"
     if index_path.exists():
         return HTMLResponse(content=index_path.read_text(encoding="utf-8"))
     return HTMLResponse(content="<h1>Website Builder</h1><p>index.html not found</p>")
+
+
+@app.get("/text", response_class=HTMLResponse)
+async def text_mode():
+    """Serve the text-based application page (backup mode)."""
+    index_path = Path(__file__).parent / "index_text.html"
+    if index_path.exists():
+        return HTMLResponse(content=index_path.read_text(encoding="utf-8"))
+    return HTMLResponse(content="<h1>Website Builder</h1><p>index_text.html not found</p>")
 
 
 @app.get("/config")
@@ -291,6 +300,46 @@ async def fetch_place(place_id: str = Query(...)):
         return biz_ctx
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.get("/sites/{site_id}/{path:path}")
+async def serve_site_file(site_id: str, path: str):
+    """Serve files from generated sites for preview."""
+    site_dir = get_site_dir(site_id)
+    file_path = site_dir / path
+    
+    # Security: ensure path doesn't escape site directory
+    try:
+        file_path.resolve().relative_to(site_dir.resolve())
+    except ValueError:
+        raise HTTPException(status_code=403, detail="Access denied")
+    
+    if not file_path.exists():
+        raise HTTPException(status_code=404, detail=f"File not found: {path}")
+    
+    if not file_path.is_file():
+        raise HTTPException(status_code=400, detail="Not a file")
+    
+    # Determine content type
+    suffix = file_path.suffix.lower()
+    content_types = {
+        ".html": "text/html",
+        ".css": "text/css",
+        ".js": "application/javascript",
+        ".json": "application/json",
+        ".png": "image/png",
+        ".jpg": "image/jpeg",
+        ".jpeg": "image/jpeg",
+        ".gif": "image/gif",
+        ".svg": "image/svg+xml",
+        ".ico": "image/x-icon",
+        ".woff": "font/woff",
+        ".woff2": "font/woff2",
+        ".ttf": "font/ttf",
+    }
+    media_type = content_types.get(suffix, "application/octet-stream")
+    
+    return FileResponse(file_path, media_type=media_type)
 
 
 # ============================================================================

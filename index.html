@@ -740,10 +740,15 @@
       font-weight: 600;
       cursor: pointer;
     }
-  </style>
+</style>
 </head>
 
 <body>
+  <!-- Mode Switch -->
+  <div style="position:fixed;top:20px;right:20px;background:#121820;border:1px solid rgba(255,255,255,0.08);padding:10px 16px;border-radius:10px;font-size:0.85rem;z-index:1000;">
+    <a href="/text" style="color:#7c8dff;text-decoration:none;">⌨️ Switch to Text Mode</a>
+  </div>
+
   <!-- Animated Background -->
   <div class="bg-animation">
     <div class="bg-blob bg-blob-1"></div>
@@ -772,7 +777,6 @@
       <div class="orb-ring"></div>
       <div class="orb-ring"></div>
       <div class="orb" id="orb"></div>
-      <div class="orb-icon" id="orbIcon">🎤</div>
     </div>
     <div class="orb-status" id="orbStatus">Tap to start</div>
     <div class="orb-hint">Click the orb to begin voice conversation</div>
@@ -845,7 +849,6 @@
     const builder = $('#builder');
     const orbContainer = $('#orbContainer');
     const orb = $('#orb');
-    const orbIcon = $('#orbIcon');
     const orbStatus = $('#orbStatus');
     const transcript = $('#transcript');
     const chat = $('#chat');
@@ -861,57 +864,105 @@
     const allowMicBtn = $('#allowMicBtn');
 
     // ========================================
-    // Audio Playback
+    // Audio Playback - Smooth Streaming
     // ========================================
-    const audioQueue = [];
-    let isPlaying = false;
+    let playbackContext = null;
+    let nextPlayTime = 0;
+    const SAMPLE_RATE = 24000;
+    let audioChunksBuffer = [];
+    let isProcessingAudio = false;
 
-    async function playAudioQueue() {
-      if (isPlaying || audioQueue.length === 0) return;
-      isPlaying = true;
-      orbContainer.classList.add('speaking');
-
-      while (audioQueue.length > 0) {
-        const audioData = audioQueue.shift();
-        await playAudioChunk(audioData);
+    function initPlaybackContext() {
+      if (!playbackContext) {
+        playbackContext = new (window.AudioContext || window.webkitAudioContext)({ sampleRate: SAMPLE_RATE });
       }
-
-      orbContainer.classList.remove('speaking');
-      isPlaying = false;
+      return playbackContext;
     }
 
-    async function playAudioChunk(base64Data) {
-      return new Promise((resolve) => {
-        try {
-          const audioData = atob(base64Data);
-          const arrayBuffer = new ArrayBuffer(audioData.length);
-          const view = new Uint8Array(arrayBuffer);
-          for (let i = 0; i < audioData.length; i++) {
-            view[i] = audioData.charCodeAt(i);
-          }
-
-          if (!audioContext) {
-            audioContext = new (window.AudioContext || window.webkitAudioContext)({ sampleRate: 24000 });
-          }
-
-          const pcmData = new Int16Array(arrayBuffer);
-          const audioBuffer = audioContext.createBuffer(1, pcmData.length, 24000);
-          const channelData = audioBuffer.getChannelData(0);
-
-          for (let i = 0; i < pcmData.length; i++) {
-            channelData[i] = pcmData[i] / 32768;
-          }
-
-          const source = audioContext.createBufferSource();
-          source.buffer = audioBuffer;
-          source.connect(audioContext.destination);
-          source.onended = resolve;
-          source.start();
-        } catch (e) {
-          console.error('Audio playback error:', e);
-          resolve();
+    function queueAudioChunk(base64Data) {
+      try {
+        const binaryString = atob(base64Data);
+        const bytes = new Uint8Array(binaryString.length);
+        for (let i = 0; i < binaryString.length; i++) {
+          bytes[i] = binaryString.charCodeAt(i);
         }
-      });
+
+        // Convert to Int16Array (PCM 16-bit)
+        const pcmData = new Int16Array(bytes.buffer);
+        audioChunksBuffer.push(pcmData);
+
+        // Start processing if not already
+        if (!isProcessingAudio) {
+          processAudioBuffer();
+        }
+      } catch (e) {
+        console.error('Error queueing audio:', e);
+      }
+    }
+
+    function processAudioBuffer() {
+      if (audioChunksBuffer.length === 0) {
+        isProcessingAudio = false;
+        orbContainer.classList.remove('speaking');
+        return;
+      }
+
+      isProcessingAudio = true;
+      orbContainer.classList.add('speaking');
+
+      const ctx = initPlaybackContext();
+
+      // Collect all available chunks into one buffer
+      let totalLength = 0;
+      for (const chunk of audioChunksBuffer) {
+        totalLength += chunk.length;
+      }
+
+      if (totalLength === 0) {
+        isProcessingAudio = false;
+        return;
+      }
+
+      // Combine chunks
+      const combined = new Float32Array(totalLength);
+      let offset = 0;
+      while (audioChunksBuffer.length > 0) {
+        const chunk = audioChunksBuffer.shift();
+        for (let i = 0; i < chunk.length; i++) {
+          combined[offset++] = chunk[i] / 32768; // Convert Int16 to Float
+        }
+      }
+
+      // Create audio buffer
+      const audioBuffer = ctx.createBuffer(1, combined.length, SAMPLE_RATE);
+      audioBuffer.getChannelData(0).set(combined);
+
+      // Create source and play
+      const source = ctx.createBufferSource();
+      source.buffer = audioBuffer;
+      source.connect(ctx.destination);
+
+      // Schedule playback
+      const currentTime = ctx.currentTime;
+      const startTime = Math.max(currentTime, nextPlayTime);
+
+      source.start(startTime);
+      nextPlayTime = startTime + audioBuffer.duration;
+
+      // Check for more audio after a small delay
+      source.onended = () => {
+        setTimeout(processAudioBuffer, 10);
+      };
+    }
+
+    // Reset playback state when starting new session
+    function resetAudioPlayback() {
+      audioChunksBuffer = [];
+      nextPlayTime = 0;
+      isProcessingAudio = false;
+      if (playbackContext) {
+        nextPlayTime = playbackContext.currentTime;
+      }
     }
 
     // ========================================
@@ -1014,12 +1065,11 @@
           siteId = msg.site_id;
           orbContainer.classList.add('active');
           orbStatus.textContent = 'Listening...';
-          orbIcon.textContent = '🎧';
+          resetAudioPlayback();
           break;
 
         case 'audio':
-          audioQueue.push(msg.data);
-          playAudioQueue();
+          queueAudioChunk(msg.data);
           break;
 
         case 'transcript':
@@ -1034,7 +1084,6 @@
 
         case 'building':
           orbStatus.textContent = 'Building website...';
-          orbIcon.textContent = '⚡';
           showTranscript('Great! Building your website now...');
           break;
 
