@@ -3,15 +3,12 @@
 Provides REST API endpoints for building and modifying websites using
 Gemini AI, with Google Places integration for business context.
 """
-import asyncio
-import base64
-import json
 import os
 import uuid
 from pathlib import Path
 from typing import Optional
 
-from fastapi import FastAPI, HTTPException, Query, WebSocket, WebSocketDisconnect
+from fastapi import FastAPI, HTTPException, Query
 from fastapi.responses import FileResponse, HTMLResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
@@ -27,7 +24,6 @@ except ImportError:
 
 from agent import run_agent, build_website
 from places import fetch_place_details, format_business_context
-from live_agent import LiveAssistant
 
 # Configuration
 SITES_DIR = Path(__file__).parent / "sites"
@@ -163,20 +159,11 @@ def create_site_scaffold(site_dir: Path):
 
 @app.get("/", response_class=HTMLResponse)
 async def root():
-    """Serve the main voice-based application page."""
+    """Serve the main application page."""
     index_path = Path(__file__).parent / "index.html"
     if index_path.exists():
         return HTMLResponse(content=index_path.read_text(encoding="utf-8"))
     return HTMLResponse(content="<h1>Website Builder</h1><p>index.html not found</p>")
-
-
-@app.get("/text", response_class=HTMLResponse)
-async def text_mode():
-    """Serve the text-based application page (backup mode)."""
-    index_path = Path(__file__).parent / "index_text.html"
-    if index_path.exists():
-        return HTMLResponse(content=index_path.read_text(encoding="utf-8"))
-    return HTMLResponse(content="<h1>Website Builder</h1><p>index_text.html not found</p>")
 
 
 @app.get("/config")
@@ -300,218 +287,6 @@ async def fetch_place(place_id: str = Query(...)):
         return biz_ctx
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
-
-
-@app.get("/sites/{site_id}/{path:path}")
-async def serve_site_file(site_id: str, path: str):
-    """Serve files from generated sites for preview."""
-    site_dir = get_site_dir(site_id)
-    file_path = site_dir / path
-    
-    # Security: ensure path doesn't escape site directory
-    try:
-        file_path.resolve().relative_to(site_dir.resolve())
-    except ValueError:
-        raise HTTPException(status_code=403, detail="Access denied")
-    
-    if not file_path.exists():
-        raise HTTPException(status_code=404, detail=f"File not found: {path}")
-    
-    if not file_path.is_file():
-        raise HTTPException(status_code=400, detail="Not a file")
-    
-    # Determine content type
-    suffix = file_path.suffix.lower()
-    content_types = {
-        ".html": "text/html",
-        ".css": "text/css",
-        ".js": "application/javascript",
-        ".json": "application/json",
-        ".png": "image/png",
-        ".jpg": "image/jpeg",
-        ".jpeg": "image/jpeg",
-        ".gif": "image/gif",
-        ".svg": "image/svg+xml",
-        ".ico": "image/x-icon",
-        ".woff": "font/woff",
-        ".woff2": "font/woff2",
-        ".ttf": "font/ttf",
-    }
-    media_type = content_types.get(suffix, "application/octet-stream")
-    
-    return FileResponse(file_path, media_type=media_type)
-
-
-# ============================================================================
-# WebSocket Live Voice Session
-# ============================================================================
-
-@app.websocket("/ws/live")
-async def live_voice_session(websocket: WebSocket):
-    """WebSocket endpoint for live voice conversation with Gemini.
-    
-    Protocol:
-    - Client sends: {"type": "start", "business_name": "...", "place_id": "..."} to start
-    - Client sends: {"type": "audio", "data": "<base64 audio>"} for audio chunks
-    - Client sends: {"type": "end"} to stop
-    
-    Server sends:
-    - {"type": "audio", "data": "<base64 audio>"} for response audio
-    - {"type": "transcript", "role": "assistant", "text": "..."} for transcripts
-    - {"type": "tool_call", "name": "submit_website_description", "args": {...}}
-    - {"type": "building", "site_id": "...", "description": "..."} when starting build
-    - {"type": "complete", "site_id": "...", "files": [...]} when build is done
-    - {"type": "error", "message": "..."} for errors
-    """
-    await websocket.accept()
-    print("🔌 WebSocket connected")
-    
-    assistant = None
-    site_id = None
-    place_id = None
-    
-    try:
-        while True:
-            # Receive message from client
-            data = await websocket.receive_text()
-            msg = json.loads(data)
-            msg_type = msg.get("type", "")
-            
-            if msg_type == "start":
-                # Start live session
-                business_name = msg.get("business_name")
-                place_id = msg.get("place_id")
-                
-                print(f"🎤 Starting live session. Business: {business_name}")
-                
-                # Initialize site
-                site_id = str(uuid.uuid4())[:8]
-                site_dir = get_site_dir(site_id)
-                create_site_scaffold(site_dir)
-                
-                # Create assistant with callbacks
-                async def send_audio(audio_data: bytes):
-                    try:
-                        await websocket.send_json({
-                            "type": "audio",
-                            "data": base64.b64encode(audio_data).decode("utf-8")
-                        })
-                    except Exception as e:
-                        print(f"Error sending audio: {e}")
-                
-                async def send_transcript(role: str, text: str):
-                    try:
-                        await websocket.send_json({
-                            "type": "transcript",
-                            "role": role,
-                            "text": text
-                        })
-                    except Exception as e:
-                        print(f"Error sending transcript: {e}")
-                
-                async def handle_tool_call(name: str, args: dict):
-                    try:
-                        await websocket.send_json({
-                            "type": "tool_call",
-                            "name": name,
-                            "args": args
-                        })
-                        
-                        if name == "submit_website_description":
-                            description = args.get("description", "")
-                            
-                            # Notify client we're starting build
-                            await websocket.send_json({
-                                "type": "building",
-                                "site_id": site_id,
-                                "description": description
-                            })
-                            
-                            # Fetch business context if we have place_id
-                            biz_ctx = fetch_business_context(place_id) if place_id else None
-                            
-                            # Run the website builder agent
-                            result = run_agent(
-                                session_dir=site_dir,
-                                user_request=description,
-                                biz_ctx=biz_ctx,
-                                max_steps=30,
-                            )
-                            
-                            # Send completion
-                            await websocket.send_json({
-                                "type": "complete",
-                                "site_id": site_id,
-                                "files": result.get("files", []),
-                                "success": result.get("success", False),
-                                "response": result.get("response", "")
-                            })
-                    except Exception as e:
-                        print(f"Error handling tool call: {e}")
-                        await websocket.send_json({
-                            "type": "error",
-                            "message": str(e)
-                        })
-                
-                def on_audio_sync(audio_data: bytes):
-                    asyncio.create_task(send_audio(audio_data))
-                
-                def on_transcript_sync(role: str, text: str):
-                    asyncio.create_task(send_transcript(role, text))
-                
-                def on_tool_call_sync(name: str, args: dict):
-                    asyncio.create_task(handle_tool_call(name, args))
-                
-                def on_end():
-                    print("🛑 Live session ended")
-                
-                assistant = LiveAssistant(
-                    business_name=business_name,
-                    place_id=place_id,
-                    on_audio=on_audio_sync,
-                    on_transcript=on_transcript_sync,
-                    on_tool_call=on_tool_call_sync,
-                    on_end=on_end,
-                )
-                
-                await assistant.start()
-                
-                await websocket.send_json({
-                    "type": "started",
-                    "site_id": site_id
-                })
-                
-            elif msg_type == "audio":
-                # Relay audio to Gemini
-                if assistant:
-                    audio_data = base64.b64decode(msg.get("data", ""))
-                    await assistant.send_audio(audio_data)
-                    
-            elif msg_type == "text":
-                # Send text message to Gemini
-                if assistant:
-                    await assistant.send_text(msg.get("text", ""))
-                    
-            elif msg_type == "end":
-                # End session
-                if assistant:
-                    await assistant.stop()
-                break
-                
-    except WebSocketDisconnect:
-        print("🔌 WebSocket disconnected")
-    except Exception as e:
-        print(f"❌ WebSocket error: {e}")
-        try:
-            await websocket.send_json({
-                "type": "error",
-                "message": str(e)
-            })
-        except Exception:
-            pass
-    finally:
-        if assistant:
-            await assistant.stop()
 
 
 # ============================================================================

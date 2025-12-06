@@ -1,0 +1,236 @@
+/*
+    Gai Kitchen Website Styles
+    Responsive, Mobile-First Design
+*/
+
+:root {
+    --color-primary: #1a237e; /* Deep Indigo Blue - The requested background color */
+    --color-secondary: #ffc107; /* Amber/Gold for accents (Thai colors) */
+    --color-text-light: #f4f4f4;
+    --color-text-dark: #333;
+    --color-background-card: #ffffff;
+    --color-background-blue: #1a237e; /* Main blue background */
+}
+
+* {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+}
+
+html {
+    scroll-behavior: smooth;
+}
+
+body {
+    font-family: 'Roboto', sans-serif;
+    line-height: 1.6;
+    background-color: var(--color-background-blue); /* Setting the main blue background */
+    color: var(--color-text-light);
+}
+
+.container {
+    width: 90%;
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 20px 0;
+}
+
+/* --- Typography --- */
+h1, h2, h3 {
+    font-weight: 700;
+    margin-bottom: 15px;
+}
+
+h1 {
+    font-size: 2.5em;
+    color: var(--color-secondary);
+}
+
+h2 {
+    font-size: 2em;
+    text-align: center;
+    color: var(--color-secondary);
+    margin-bottom: 40px;
+}
+
+p {
+    margin-bottom: 15px;
+}
+
+/* --- Header/Hero Section --- */
+.hero {
+    background-color: rgba(0, 0, 0, 0.4); /* Dark overlay for better text contrast */
+    background-image: url('https://via.placeholder.com/1200x600?text=Gai+Kitchen+Chicken+and+Rice'); /* Placeholder for a food image */
+    background-size: cover;
+    background-position: center;
+    padding: 100px 0;
+    text-align: center;
+    min-height: 60vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.hero .container {
+    background-color: rgba(26, 35, 126, 0.8); /* Semi-transparent blue box for text */
+    padding: 30px;
+    border-radius: 10px;
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+}
+
+.tagline {
+    font-size: 1.2em;
+    margin-bottom: 30px;
+    font-weight: 300;
+}
+
+/* --- Buttons --- */
+.btn {
+    display: inline-block;
+    background-color: var(--color-secondary);
+    color: var(--color-text-dark);
+    padding: 10px 25px;
+    text-decoration: none;
+    border-radius: 5px;
+    font-weight: 700;
+    transition: background-color 0.3s ease;
+}
+
+.btn:hover {
+    background-color: #ffeb3b;
+}
+
+/* --- Sections --- */
+.section {
+    padding: 60px 0;
+    background-color: var(--color-background-card); /* White/light background for content */
+    color: var(--color-text-dark);
+    margin-bottom: 20px;
+    border-radius: 8px;
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+}
+
+.section:nth-child(even) {
+    background-color: #f9f9f9;
+}
+
+/* --- Menu Section --- */
+.menu-grid {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 30px;
+    text-align: center;
+}
+
+.menu-item {
+    padding: 20px;
+    border: 1px solid #ddd;
+    border-radius: 8px;
+    transition: transform 0.3s ease;
+}
+
+.menu-item:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
+}
+
+.menu-item h3 {
+    color: var(--color-primary);
+    margin-bottom: 5px;
+}
+
+/* --- Hours & Contact Section --- */
+.hours-section .container {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+}
+
+.contact-info {
+    margin-bottom: 30px;
+}
+
+.hours-list ul {
+    list-style: none;
+    padding: 0;
+}
+
+.hours-list li {
+    padding: 5px 0;
+    border-bottom: 1px dotted #ccc;
+}
+
+/* --- Reviews Section --- */
+.reviews-section {
+    background-color: var(--color-primary); /* Use the blue color for the reviews section */
+    color: var(--color-text-light);
+}
+
+.reviews-section h2 {
+    color: var(--color-secondary);
+}
+
+.review-card {
+    background-color: rgba(255, 255, 255, 0.1);
+    padding: 20px;
+    border-radius: 8px;
+    margin-bottom: 20px;
+    border-left: 5px solid var(--color-secondary);
+}
+
+.review-text {
+    font-style: italic;
+    margin-bottom: 10px;
+}
+
+.review-author {
+    text-align: right;
+    font-weight: 700;
+    color: var(--color-secondary);
+}
+
+/* --- Footer --- */
+footer {
+    background-color: #0d113f; /* Slightly darker blue for footer */
+    color: var(--color-text-light);
+    text-align: center;
+    padding: 20px 0;
+}
+
+footer a {
+    color: var(--color-secondary);
+    text-decoration: none;
+    transition: color 0.3s ease;
+}
+
+footer a:hover {
+    color: #fff;
+}
+
+/* --- Desktop/Tablet Styles (Min-width 768px) --- */
+@media (min-width: 768px) {
+    h1 {
+        font-size: 3.5em;
+    }
+
+    h2 {
+        font-size: 2.5em;
+    }
+
+    .hero {
+        padding: 150px 0;
+        min-height: 70vh;
+    }
+
+    .menu-grid {
+        grid-template-columns: repeat(3, 1fr);
+    }
+
+    .hours-section .container {
+        flex-direction: row;
+        justify-content: space-around;
+        text-align: left;
+    }
+}

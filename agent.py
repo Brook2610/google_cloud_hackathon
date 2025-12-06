@@ -204,39 +204,8 @@ def run_agent(
             {"recursion_limit": max_steps},
         )
         
-        # Log tool usage
-        messages = result.get("messages", [])
-        print("\n📋 Tool Usage Log:")
-        tool_count = 0
-        for msg in messages:
-            # Check for tool calls
-            if hasattr(msg, "tool_calls") and msg.tool_calls:
-                for tool_call in msg.tool_calls:
-                    tool_count += 1
-                    tool_name = tool_call.get("name", "unknown")
-                    tool_args = tool_call.get("args", {})
-                    
-                    # Log tool call
-                    if tool_name == "write_file":
-                        filename = tool_args.get("filename", "?")
-                        content_len = len(tool_args.get("content", ""))
-                        print(f"  🔧 [{tool_count}] write_file: {filename} ({content_len} chars)")
-                    elif tool_name == "read_file":
-                        filename = tool_args.get("filename", "?")
-                        print(f"  🔧 [{tool_count}] read_file: {filename}")
-                    elif tool_name == "list_files":
-                        print(f"  🔧 [{tool_count}] list_files")
-                    elif tool_name == "get_business_context":
-                        print(f"  🔧 [{tool_count}] get_business_context")
-                    elif tool_name == "get_places_api_docs":
-                        print(f"  🔧 [{tool_count}] get_places_api_docs")
-                    else:
-                        print(f"  🔧 [{tool_count}] {tool_name}")
-        
-        if tool_count == 0:
-            print("  (No tools used)")
-        
         # Extract final response
+        messages = result.get("messages", [])
         final_response = ""
         for msg in reversed(messages):
             if hasattr(msg, "content") and msg.content:
