@@ -102,8 +102,11 @@ def make_website_tools(session_dir: Path, biz_ctx: dict = None) -> List:
     def get_business_context() -> str:
         """Get the business context information from Google Places.
         
-        Call this to get the client's business data including name, address,
+        Call this FIRST to get the client's business data including name, address,
         phone, hours, reviews, photos, and rating.
+        
+        **IMPORTANT**: If local photos are mentioned, you MUST use them in your HTML!
+        Photos are already downloaded and ready to use with relative paths like `images/photo_1.jpg`.
         
         Returns:
             Formatted business information, or message if not available
@@ -111,12 +114,26 @@ def make_website_tools(session_dir: Path, biz_ctx: dict = None) -> List:
         if not biz_ctx:
             return "No business data available for this session."
         
+        result = ""
         if "place_data" in biz_ctx:
-            return format_business_context(biz_ctx["place_data"])
+            result = format_business_context(biz_ctx["place_data"])
         elif "formatted" in biz_ctx:
-            return biz_ctx["formatted"]
+            result = biz_ctx["formatted"]
         else:
-            return str(biz_ctx)
+            result = str(biz_ctx)
+        
+        # Emphasize local photos if available
+        local_photos = biz_ctx.get("local_photos", [])
+        if local_photos:
+            result += f"\n\n🚨 **CRITICAL: Local Photos Ready to Use**\n"
+            result += "These photos are already downloaded and MUST be included in your website:\n"
+            for photo in local_photos:
+                result += f"  - `{photo}` - Use this path in your <img> tags!\n"
+            result += "\nExample usage:\n"
+            result += f'  <img src="{local_photos[0]}" alt="Business photo" style="width: 100%; max-width: 800px;">\n'
+            result += f'  <img src="{local_photos[1] if len(local_photos) > 1 else local_photos[0]}" alt="Business interior">\n'
+        
+        return result
     
     @tool("get_places_api_docs")
     def get_places_api_docs() -> str:

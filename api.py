@@ -28,6 +28,7 @@ except ImportError:
 from agent import run_agent, build_website
 from places import fetch_place_details, format_business_context
 from live_agent import LiveAssistant
+from db import save_website, get_website, list_websites
 
 # Configuration
 SITES_DIR = Path(__file__).parent / "sites"
@@ -102,7 +103,7 @@ def download_photos_background(place_data: dict, site_dir: Path) -> None:
         print(f"⚠️ Cannot download photos: {e}")
         return
     
-    for i, photo in enumerate(place_data["photos"][:5]):  # Max 5 photos
+    for i, photo in enumerate(place_data["photos"][:3]):  # Max 3 photos
         photo_name = photo.get("name")
         if not photo_name:
             continue
@@ -144,7 +145,7 @@ def fetch_business_context(place_id: str, site_dir: Path = None) -> Optional[dic
         # Generate expected local photo paths (photos will be downloaded in background)
         local_photos = []
         if site_dir and place_data.get("photos"):
-            for i in range(min(len(place_data["photos"]), 5)):
+            for i in range(min(len(place_data["photos"]), 3)):
                 local_photos.append(f"images/photo_{i+1}.jpg")
         
         # Add expected local photos to place_data for the AI
@@ -153,11 +154,17 @@ def fetch_business_context(place_id: str, site_dir: Path = None) -> Optional[dic
         
         formatted = format_business_context(place_data)
         
-        # Tell AI about local photos it should use
+        # Tell AI about local photos it should use - make it VERY explicit
         if local_photos:
-            formatted += f"\n\n**Local Photos (use these paths - photos are being downloaded):**\n"
+            formatted += f"\n\n🚨 **CRITICAL: Local Photos Ready to Use in Website**\n"
+            formatted += "These photos are downloaded and MUST be included in your HTML:\n"
             for photo_path in local_photos:
-                formatted += f"  - `{photo_path}`\n"
+                formatted += f"  - `{photo_path}` - Use this EXACT path in <img> tags\n"
+            formatted += "\n**Example usage in HTML:**\n"
+            formatted += f'  <img src="{local_photos[0]}" alt="Business photo" style="width: 100%; max-width: 800px;">\n'
+            if len(local_photos) > 1:
+                formatted += f'  <img src="{local_photos[1]}" alt="Business interior">\n'
+            formatted += "\n**You MUST include these photos in your website design!**\n"
         
         return {
             "place_id": place_id,
@@ -308,6 +315,22 @@ async def build_site(request: BuildRequest):
         max_steps=30,
     )
     
+    # Get place name for database
+    place_name = None
+    if biz_ctx and biz_ctx.get("place_data"):
+        place_name = biz_ctx["place_data"].get("displayName", {}).get("text") if isinstance(biz_ctx["place_data"].get("displayName"), dict) else None
+    
+    # Save to database
+    file_count = len(result.get("files", []))
+    save_website(
+        site_id=site_id,
+        description=request.spec,
+        place_id=request.place_id,
+        place_name=place_name,
+        file_count=file_count,
+        success=result.get("success", False)
+    )
+    
     return BuildResponse(
         success=result.get("success", False),
         site_id=site_id,
@@ -353,6 +376,20 @@ async def modify_site(request: ModifyRequest):
         max_steps=30,
     )
     
+    # Update database record
+    existing = get_website(request.site_id)
+    if existing:
+        # Update existing record
+        file_count = len(result.get("files", []))
+        save_website(
+            site_id=request.site_id,
+            description=existing.get("description", "") + f"\n\nModified: {request.instruction}",
+            place_id=request.place_id or existing.get("place_id"),
+            place_name=existing.get("place_name"),
+            file_count=file_count,
+            success=result.get("success", False)
+        )
+    
     return BuildResponse(
         success=result.get("success", False),
         site_id=request.site_id,
@@ -376,6 +413,33 @@ async def list_files(site_id: str = Query(...)):
             files.append(str(f.relative_to(site_dir)))
     
     return {"files": sorted(files)}
+
+
+@app.get("/websites")
+async def list_websites_endpoint(limit: int = Query(50, ge=1, le=100)):
+    """List all saved websites.
+    
+    Args:
+        limit: Maximum number of websites to return (1-100)
+    
+    Returns:
+        List of website records
+    """
+    websites = list_websites(limit=limit)
+    return {"websites": websites}
+
+
+@app.get("/websites/{site_id}")
+async def get_website_endpoint(site_id: str):
+    """Get a specific website by site_id.
+    
+    Returns:
+        Website record or 404 if not found
+    """
+    website = get_website(site_id)
+    if not website:
+        raise HTTPException(status_code=404, detail=f"Website {site_id} not found")
+    return website
 
 
 @app.get("/place/fetch")
@@ -587,20 +651,47 @@ async def live_voice_session(websocket: WebSocket):
                                                 types.FunctionResponse(
                                                     id=getattr(fc, "id", None),
                                                     name=fname,
-                                                    response={"result": "ok", "message": "Building started"}
+                                                    response={"result": "ok", "message": "Website building started"}
                                                 )
                                             ]
                                         )
                                         
-                                        # Notify client
+                                        # Notify client to switch to builder IMMEDIATELY
                                         await websocket.send_json({
                                             "type": "building",
                                             "site_id": site_id,
                                             "description": description
                                         })
                                         
+                                        # Signal conversation end to client (after transition)
+                                        await websocket.send_json({
+                                            "type": "conversation_end"
+                                        })
+                                        
+                                        # Small delay to let final audio play, then close session
+                                        await asyncio.sleep(1)
+                                        
+                                        # Close the Gemini session (conversation is over)
+                                        # But keep WebSocket open to send completion later
+                                        should_stop = True
+                                        
+                                        # Close Gemini session explicitly
+                                        if session_ctx:
+                                            try:
+                                                await session_ctx.__aexit__(None, None, None)
+                                                session_ctx = None
+                                                session = None
+                                                print("🔌 Gemini session closed (conversation ended)")
+                                            except Exception as e:
+                                                print(f"⚠️ Error closing Gemini session: {e}")
+                                        
                                         # Fetch business context
                                         biz_ctx = fetch_business_context(place_id, site_dir) if place_id else None
+                                        
+                                        # Get place name for database
+                                        place_name = None
+                                        if biz_ctx and biz_ctx.get("place_data"):
+                                            place_name = biz_ctx["place_data"].get("displayName", {}).get("text") if isinstance(biz_ctx["place_data"].get("displayName"), dict) else None
                                         
                                         # Start photo download in background
                                         if biz_ctx and biz_ctx.get("place_data", {}).get("photos"):
@@ -614,11 +705,30 @@ async def live_voice_session(websocket: WebSocket):
                                             print("📸 Started background photo download...")
                                         
                                         # Run agent (photos download in parallel)
-                                        result = run_agent(
-                                            session_dir=site_dir,
-                                            user_request=description,
-                                            biz_ctx=biz_ctx,
-                                            max_steps=30,
+                                        # Use run_in_executor to prevent blocking the WebSocket loop
+                                        loop = asyncio.get_running_loop()
+                                        from functools import partial
+                                        
+                                        result = await loop.run_in_executor(
+                                            None,
+                                            partial(
+                                                run_agent,
+                                                session_dir=site_dir,
+                                                user_request=description,
+                                                biz_ctx=biz_ctx,
+                                                max_steps=30,
+                                            )
+                                        )
+                                        
+                                        # Save to database
+                                        file_count = len(result.get("files", []))
+                                        save_website(
+                                            site_id=site_id,
+                                            description=description,
+                                            place_id=place_id,
+                                            place_name=place_name,
+                                            file_count=file_count,
+                                            success=result.get("success", False)
                                         )
                                         
                                         # Send completion
@@ -630,7 +740,6 @@ async def live_voice_session(websocket: WebSocket):
                                             "response": result.get("response", "")
                                         })
                                         
-                                        should_stop = True
                                         return
                                         
             except WebSocketDisconnect:
@@ -653,12 +762,13 @@ async def live_voice_session(websocket: WebSocket):
         except:
             pass
     finally:
+        # Only close if not already closed
         if session_ctx:
             try:
                 await session_ctx.__aexit__(None, None, None)
             except:
                 pass
-        print("🔌 Session closed")
+        print("🔌 WebSocket session closed")
 
 
 # ============================================================================

@@ -69,13 +69,32 @@ def build_system_prompt(session_dir: Path, biz_ctx: dict = None) -> str:
     # Business data note
     business_note = ""
     if biz_ctx and biz_ctx.get("place_data"):
-        business_note = """
+        local_photos = biz_ctx.get("local_photos", [])
+        photos_note = ""
+        if local_photos:
+            photos_note = f"""
+**IMPORTANT - Local Photos Available:**
+The following photos have been downloaded and are ready to use in your HTML:
+{chr(10).join(f"  - `{photo}`" for photo in local_photos)}
+
+**You MUST use these photos in the website!** Include them in:
+- Hero/banner sections
+- Gallery sections  
+- About/feature sections
+- Anywhere images would enhance the design
+
+Use them like: `<img src="{local_photos[0] if local_photos else 'images/photo_1.jpg'}" alt="Business photo">`
+"""
+        
+        business_note = f"""
 ✅ **Business data is available!** Call `get_business_context()` to access:
 - Business name, address, phone
 - Opening hours
 - Customer reviews and ratings
-- Photos
+- Photos (local files ready to use)
 - Google Maps location
+
+{photos_note}
 """
     else:
         business_note = """
@@ -105,17 +124,21 @@ Build beautiful, functional websites quickly and efficiently. You have tools for
 ## Workflow
 1. **Understand**: Read the user's request carefully
 2. **Plan**: Decide what files to create (HTML, CSS, JS)
-3. **Implement**: Create complete files using `write_file`
-4. **Integrate**: If business data available, call `get_business_context()` and integrate it
-5. **Finish**: Provide a brief summary and STOP
+3. **Get Business Data**: If business data available, ALWAYS call `get_business_context()` first
+4. **Implement**: Create complete files using `write_file` - INCLUDE PHOTOS if available
+5. **Integrate**: Use all business data including photos, address, hours, reviews
+6. **Finish**: Provide a brief summary and STOP
 
 ## Critical Rules
 ✅ **DO**:
 - Use `write_file(filename, content)` to create files
 - Create complete files with full content in one step
-- Integrate real business data when available
+- **ALWAYS call `get_business_context()` if business data is available**
+- **ALWAYS include photos in the website if local photos are mentioned**
+- Integrate real business data when available (name, address, phone, hours, reviews, photos)
 - Write responsive CSS with mobile-first approach
 - Use relative paths for assets (e.g., `css/style.css`, NOT `/css/style.css`)
+- Use relative paths for images (e.g., `images/photo_1.jpg`, NOT `/images/photo_1.jpg`)
 - Provide a brief summary when done
 
 ❌ **DON'T**:

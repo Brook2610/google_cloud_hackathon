@@ -21,21 +21,27 @@ steps:
       - "--platform"
       - "managed"
       - "--allow-unauthenticated"
-      # MOUNT GCS BUCKET FOR PERSISTENCE (Replace [YOUR_BUCKET_NAME])
+      # MOUNT GCS BUCKET FOR SITES PERSISTENCE
       - "--add-volume"
       - "name=sites_storage,type=cloud-storage,bucket=gcp-hackathon-2"
       - "--add-volume-mount"
       - "volume=sites_storage,mount-path=/app/sites"
+      # MOUNT PERSISTENT VOLUME FOR DATABASE
+      - "--add-volume"
+      - "name=db_storage,type=cloud-storage,bucket=gcp-hackathon-2"
+      - "--add-volume-mount"
+      - "volume=db_storage,mount-path=/app/data"
       # ENVIRONMENT VARIABLES
       - "--set-env-vars"
       - "GOOGLE_API_KEY=${_GOOGLE_API_KEY}"
       - "--set-env-vars"
       - "GOOGLE_CLOUD_CREDENTIALS=${_GOOGLE_MAPS_KEY}"
+      - "--set-env-vars"
+      - "DB_DIR=/app/data"
 
 images:
   - "gcr.io/$PROJECT_ID/website-builder"
 
-# ADD THIS SECTION TO FIX THE ERROR
 options:
   logging: CLOUD_LOGGING_ONLY
 

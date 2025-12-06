@@ -1,1405 +1,1493 @@
 <!DOCTYPE html>
 <html lang="en">
-
-<head>
+  <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>AI Website Builder | Voice Mode</title>
-    <meta name="description"
-        content="Build websites with voice! Speak to our AI assistant and watch your website come to life." />
+    <meta
+      name="description"
+      content="Build websites with voice! Speak to our AI assistant and watch your website come to life."
+    />
 
     <style>
+      :root {
+        --bg: #ffffff;
+        --card: #ffffff;
+        --muted: #f3f4f6;
+        --text: #111827;
+        --sub: #6b7280;
+        --accent: #2563eb;
+        --accent-hover: #1d4ed8;
+        --border: #e5e7eb;
+        --success: #10b981;
+        --error: #ef4444;
+        --shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05),
+          0 2px 4px -1px rgba(0, 0, 0, 0.03);
+      }
+
+      @media (prefers-color-scheme: dark) {
         :root {
-            --bg: #0a0e14;
-            --card: #121820;
-            --muted: #1a222d;
-            --text: #f1f5fa;
-            --sub: #8892a0;
-            --accent: #7c8dff;
-            --accent-2: #59e3d9;
-            --accent-3: #ff6b9d;
-            --glow: rgba(124, 141, 255, 0.4);
-        }
-
-        * {
-            box-sizing: border-box;
-            margin: 0;
-            padding: 0;
-        }
-
-        html,
-        body {
-            height: 100%;
-            overflow: hidden;
-        }
-
-        body {
-            font-family: 'Inter', system-ui, -apple-system, sans-serif;
-            background: var(--bg);
-            color: var(--text);
-        }
-
-        /* ========================================
-       ANIMATED BACKGROUND
-       ======================================== */
-        .bg-animation {
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            z-index: 0;
-            pointer-events: none;
-            overflow: hidden;
-        }
-
-        .bg-blob {
-            position: absolute;
-            border-radius: 50%;
-            filter: blur(80px);
-            opacity: 0.4;
-            animation: float 20s ease-in-out infinite;
-        }
-
-        .bg-blob-1 {
-            width: 500px;
-            height: 500px;
-            background: radial-gradient(circle, rgba(124, 141, 255, 0.3) 0%, transparent 70%);
-            top: -10%;
-            left: -10%;
-            animation-delay: 0s;
-        }
-
-        .bg-blob-2 {
-            width: 400px;
-            height: 400px;
-            background: radial-gradient(circle, rgba(89, 227, 217, 0.25) 0%, transparent 70%);
-            top: 60%;
-            right: -5%;
-            animation-delay: -7s;
-        }
-
-        .bg-blob-3 {
-            width: 350px;
-            height: 350px;
-            background: radial-gradient(circle, rgba(255, 107, 157, 0.2) 0%, transparent 70%);
-            bottom: -5%;
-            left: 30%;
-            animation-delay: -14s;
-        }
-
-        @keyframes float {
-
-            0%,
-            100% {
-                transform: translate(0, 0) scale(1);
-            }
-
-            25% {
-                transform: translate(30px, -30px) scale(1.05);
-            }
-
-            50% {
-                transform: translate(-20px, 20px) scale(0.95);
-            }
-
-            75% {
-                transform: translate(20px, 10px) scale(1.02);
-            }
-        }
-
-        /* Floating particles */
-        .particles {
-            position: absolute;
-            width: 100%;
-            height: 100%;
-        }
-
-        .particle {
-            position: absolute;
-            width: 4px;
-            height: 4px;
-            background: rgba(124, 141, 255, 0.3);
-            border-radius: 50%;
-            animation: rise 15s ease-in-out infinite;
-        }
-
-        @keyframes rise {
-            0% {
-                transform: translateY(100vh) scale(0);
-                opacity: 0;
-            }
-
-            10% {
-                opacity: 1;
-            }
-
-            90% {
-                opacity: 1;
-            }
-
-            100% {
-                transform: translateY(-100vh) scale(1);
-                opacity: 0;
-            }
-        }
-
-        /* ========================================
-       LANDING SCREEN
-       ======================================== */
-        .landing {
-            position: relative;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            min-height: 100vh;
-            padding: 40px 20px;
-            z-index: 1;
-            transition: opacity 0.5s ease, visibility 0.5s ease;
-        }
-
-        .landing.hidden {
-            opacity: 0;
-            visibility: hidden;
-            pointer-events: none;
-        }
-
-        .landing-header {
-            text-align: center;
-            margin-bottom: 30px;
-        }
-
-        .landing-header h1 {
-            font-size: 2.8rem;
-            font-weight: 800;
-            margin-bottom: 12px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            gap: 12px;
-        }
-
-        .landing-header h1 .icon {
-            font-size: 2.2rem;
-            animation: pulse-icon 2s ease-in-out infinite;
-        }
-
-        @keyframes pulse-icon {
-
-            0%,
-            100% {
-                transform: scale(1);
-            }
-
-            50% {
-                transform: scale(1.1);
-            }
-        }
-
-        .title-gradient {
-            background: linear-gradient(135deg, #ff6b9d 0%, #7c8dff 50%, #59e3d9 100%);
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-            background-clip: text;
-        }
-
-        .landing-header p {
-            color: var(--sub);
-            font-size: 1.1rem;
-            max-width: 480px;
-            margin: 0 auto;
-            line-height: 1.6;
-        }
-
-        /* Place Picker Card */
-        .place-card {
-            background: rgba(18, 24, 32, 0.8);
-            backdrop-filter: blur(20px);
-            border: 1px solid rgba(255, 255, 255, 0.06);
-            border-radius: 20px;
-            padding: 20px;
-            width: min(380px, 90vw);
-            margin-bottom: 30px;
-        }
-
-        .place-card h3 {
-            font-size: 0.8rem;
-            font-weight: 600;
-            text-transform: uppercase;
-            letter-spacing: 1px;
-            color: var(--sub);
-            margin-bottom: 10px;
-            display: flex;
-            align-items: center;
-            gap: 6px;
-        }
-
-        #pac-input {
-            width: 100%;
-            background: var(--muted);
-            border: 1px solid rgba(255, 255, 255, 0.08);
-            color: var(--text);
-            padding: 12px 14px;
-            border-radius: 10px;
-            outline: none;
-            font-size: 0.9rem;
-            margin-bottom: 10px;
-            transition: border-color 0.2s;
-        }
-
-        #pac-input:focus {
-            border-color: var(--accent);
-        }
-
-        #map {
-            width: 100%;
-            height: 140px;
-            border-radius: 10px;
-            overflow: hidden;
-            background: var(--muted);
-        }
-
-        /* Hide Google Maps attribution for cleaner UI (strict use only for demo) */
-        #map .gm-style-cc,
-        #map .gmnoprint,
-        #map a[href^="https://maps.google.com"] {
-            display: none !important;
-        }
-
-        .place-meta {
-            font-size: 0.82rem;
-            color: var(--sub);
-            margin-top: 10px;
-            line-height: 1.5;
-        }
-
-        .place-meta strong {
-            color: var(--text);
-        }
-
-        .place-meta .selected {
-            color: var(--accent-2);
-        }
-
-        /* Orb Container */
-        .orb-container {
-            position: relative;
-            width: 260px;
-            height: 260px;
-            margin: 10px 0 20px;
-            cursor: pointer;
-        }
-
-        /* The Orb */
-        .orb {
-            position: absolute;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%);
-            width: 160px;
-            height: 160px;
-            border-radius: 50%;
-            background: radial-gradient(circle at 30% 30%,
-                    rgba(124, 141, 255, 0.95) 0%,
-                    rgba(85, 105, 255, 0.75) 40%,
-                    rgba(124, 141, 255, 0.5) 100%);
-            box-shadow:
-                0 0 60px var(--glow),
-                0 0 120px rgba(124, 141, 255, 0.2),
-                inset 0 0 40px rgba(255, 255, 255, 0.15);
-            transition: all 0.3s ease;
-        }
-
-        .orb::before {
-            content: '';
-            position: absolute;
-            top: 12%;
-            left: 22%;
-            width: 28%;
-            height: 18%;
-            background: radial-gradient(ellipse, rgba(255, 255, 255, 0.5), transparent);
-            border-radius: 50%;
-            filter: blur(6px);
-        }
-
-        .orb-container:hover .orb {
-            transform: translate(-50%, -50%) scale(1.08);
-            box-shadow:
-                0 0 80px var(--glow),
-                0 0 160px rgba(124, 141, 255, 0.35);
-        }
-
-        /* Orb rings */
-        .orb-ring {
-            position: absolute;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%);
-            border-radius: 50%;
-            border: 1px solid rgba(124, 141, 255, 0.25);
-            animation: pulse-ring 3s ease-in-out infinite;
-        }
-
-        .orb-ring:nth-child(1) {
-            width: 180px;
-            height: 180px;
-            animation-delay: 0s;
-        }
-
-        .orb-ring:nth-child(2) {
-            width: 210px;
-            height: 210px;
-            animation-delay: 0.5s;
-        }
-
-        .orb-ring:nth-child(3) {
-            width: 240px;
-            height: 240px;
-            animation-delay: 1s;
-        }
-
-        @keyframes pulse-ring {
-
-            0%,
-            100% {
-                opacity: 0.3;
-                transform: translate(-50%, -50%) scale(1);
-            }
-
-            50% {
-                opacity: 0.6;
-                transform: translate(-50%, -50%) scale(1.05);
-            }
-        }
-
-        /* Orb icon */
-        .orb-icon {
-            position: absolute;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%);
-            font-size: 2.5rem;
-            z-index: 2;
-            opacity: 0.9;
-        }
-
-        /* Active state */
-        .orb-container.active .orb {
-            animation: orb-breathe 1.5s ease-in-out infinite;
-            background: radial-gradient(circle at 30% 30%,
-                    rgba(89, 227, 217, 0.95) 0%,
-                    rgba(124, 141, 255, 0.75) 40%,
-                    rgba(89, 227, 217, 0.5) 100%);
-        }
-
-        .orb-container.active .orb-icon {
-            animation: icon-pulse 1s ease-in-out infinite;
-        }
-
-        @keyframes icon-pulse {
-
-            0%,
-            100% {
-                transform: translate(-50%, -50%) scale(1);
-            }
-
-            50% {
-                transform: translate(-50%, -50%) scale(1.15);
-            }
-        }
-
-        /* Speaking state */
-        .orb-container.speaking .orb {
-            animation: orb-speak 0.12s ease-in-out infinite alternate;
-        }
-
-        .orb-container.speaking .orb-ring {
-            animation: pulse-ring-fast 0.4s ease-in-out infinite;
-        }
-
-        @keyframes orb-breathe {
-
-            0%,
-            100% {
-                transform: translate(-50%, -50%) scale(1);
-            }
-
-            50% {
-                transform: translate(-50%, -50%) scale(1.06);
-            }
-        }
-
-        @keyframes orb-speak {
-            0% {
-                transform: translate(-50%, -50%) scale(1);
-                box-shadow: 0 0 60px var(--glow);
-            }
-
-            100% {
-                transform: translate(-50%, -50%) scale(1.1);
-                box-shadow: 0 0 100px rgba(89, 227, 217, 0.5);
-            }
-        }
-
-        @keyframes pulse-ring-fast {
-
-            0%,
-            100% {
-                opacity: 0.5;
-                transform: translate(-50%, -50%) scale(1);
-            }
-
-            50% {
-                opacity: 0.9;
-                transform: translate(-50%, -50%) scale(1.08);
-            }
-        }
-
-        /* Status text */
-        .orb-status {
-            text-align: center;
-            font-size: 0.9rem;
-            color: var(--sub);
-            margin-top: 10px;
-        }
-
-        .orb-container.active .orb-status {
-            color: var(--accent-2);
-        }
-
-        /* Hint text */
-        .orb-hint {
-            text-align: center;
-            font-size: 0.8rem;
-            color: rgba(136, 146, 160, 0.6);
-            margin-top: 6px;
-        }
-
-        /* Transcript bubble */
-        .transcript {
-            position: fixed;
-            bottom: 60px;
-            left: 50%;
-            transform: translateX(-50%);
-            background: rgba(26, 34, 45, 0.95);
-            backdrop-filter: blur(10px);
-            border: 1px solid rgba(255, 255, 255, 0.1);
-            border-radius: 16px;
-            padding: 14px 22px;
-            max-width: 450px;
-            text-align: center;
-            font-size: 0.95rem;
-            color: var(--text);
-            opacity: 0;
-            transition: opacity 0.3s ease;
-            z-index: 100;
-            pointer-events: none;
-        }
-
-        .transcript.visible {
-            opacity: 1;
-        }
-
-        /* ========================================
-       BUILDER SCREEN
-       ======================================== */
-        .builder {
-            display: none;
-            grid-template-columns: 360px 1fr;
-            height: 100vh;
-            position: fixed;
-            top: 0;
-            left: 0;
-            right: 0;
-            bottom: 0;
-            z-index: 100;
-            background: var(--bg);
-            animation: fadeIn 0.5s ease;
-        }
-
-        @keyframes fadeIn {
-            from {
-                opacity: 0;
-            }
-
-            to {
-                opacity: 1;
-            }
-        }
-
-        .builder.visible {
-            display: grid;
-        }
-
-        .sidebar {
-            display: flex;
-            flex-direction: column;
-            background: var(--card);
-            border-right: 1px solid rgba(255, 255, 255, 0.06);
-        }
-
-        .sidebar-header {
-            padding: 16px 20px;
-            border-bottom: 1px solid rgba(255, 255, 255, 0.06);
-            font-weight: 600;
-            font-size: 1.05rem;
-            display: flex;
-            align-items: center;
-            gap: 10px;
-        }
-
-        .chat {
-            flex: 1;
-            overflow-y: auto;
-            padding: 16px;
-            display: flex;
-            flex-direction: column;
-            gap: 12px;
-        }
-
-        .msg {
-            display: flex;
-            gap: 10px;
-            align-items: flex-start;
-        }
-
-        .msg .avatar {
-            width: 30px;
-            height: 30px;
-            border-radius: 50%;
-            background: var(--muted);
-            flex-shrink: 0;
-        }
-
-        .msg.user .avatar {
-            background: linear-gradient(135deg, var(--accent), var(--accent-2));
-        }
-
-        .msg .bubble {
-            background: var(--muted);
-            padding: 11px 15px;
-            border-radius: 14px;
-            max-width: 85%;
-            line-height: 1.5;
-            white-space: pre-wrap;
-            font-size: 0.9rem;
-        }
-
-        .msg.user .bubble {
-            background: rgba(124, 141, 255, 0.15);
-        }
-
-        .composer {
-            padding: 14px;
-            border-top: 1px solid rgba(255, 255, 255, 0.06);
-            display: flex;
-            gap: 10px;
-        }
-
-        .composer textarea {
-            flex: 1;
-            background: var(--muted);
-            border: 1px solid rgba(255, 255, 255, 0.08);
-            color: var(--text);
-            padding: 12px 14px;
-            border-radius: 12px;
-            outline: none;
-            resize: none;
-            min-height: 46px;
-            max-height: 120px;
-            font-size: 0.9rem;
-        }
-
-        .composer button {
-            background: linear-gradient(135deg, var(--accent), #5569ff);
-            color: white;
-            border: none;
-            padding: 0 22px;
-            border-radius: 12px;
-            font-weight: 600;
-            cursor: pointer;
-        }
-
-        .composer button:disabled {
-            opacity: 0.5;
-            cursor: not-allowed;
-        }
-
-        .preview {
-            display: flex;
-            flex-direction: column;
-            background: var(--bg);
-        }
-
-        .preview-toolbar {
-            display: flex;
-            align-items: center;
-            gap: 10px;
-            padding: 10px 14px;
-            background: var(--card);
-            border-bottom: 1px solid rgba(255, 255, 255, 0.06);
-        }
-
-        .preview-toolbar button {
-            background: var(--muted);
-            color: var(--text);
-            border: none;
-            padding: 8px 12px;
-            border-radius: 8px;
-            cursor: pointer;
-        }
-
-        .preview-toolbar .addr {
-            flex: 1;
-            color: var(--sub);
-            font-size: 0.82rem;
-            overflow: hidden;
-            text-overflow: ellipsis;
-            white-space: nowrap;
-        }
-
-        .preview-wrapper {
-            position: relative;
-            flex: 1;
-        }
-
-        .preview iframe {
-            position: absolute;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            border: 0;
-            background: white;
-        }
-
+          --bg: #09090b;
+          --card: #18181b;
+          --muted: #27272a;
+          --text: #f9fafb;
+          --sub: #a1a1aa;
+          --accent: #3b82f6;
+          --accent-hover: #2563eb;
+          --border: #27272a;
+          --shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.3),
+            0 2px 4px -1px rgba(0, 0, 0, 0.2);
+        }
+      }
+
+      * {
+        box-sizing: border-box;
+        margin: 0;
+        padding: 0;
+      }
+
+      html,
+      body {
+        height: 100%;
+        overflow: hidden;
+        font-family: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI",
+          Roboto, Helvetica, Arial, sans-serif;
+        background: var(--bg);
+        color: var(--text);
+        line-height: 1.5;
+      }
+
+      /* Typography & Utilities */
+      h1,
+      h2,
+      h3 {
+        font-weight: 600;
+        letter-spacing: -0.02em;
+      }
+      button {
+        font-family: inherit;
+      }
+      .hidden {
+        display: none !important;
+      }
+
+      /* Hide old animation elements */
+      .bg-animation,
+      .particles {
+        display: none !important;
+      }
+
+      /* LANDING SCREEN */
+      .landing {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        height: 100vh;
+        padding: 20px;
+        transition: opacity 0.3s ease;
+        position: relative;
+        z-index: 10;
+      }
+
+      .landing.hidden {
+        opacity: 0;
+        pointer-events: none;
+        position: absolute;
+        width: 100%;
+      }
+
+      .landing-header {
+        text-align: center;
+        margin-bottom: 40px;
+      }
+
+      .landing-header h1 {
+        font-size: 2.5rem;
+        margin-bottom: 12px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 12px;
+      }
+
+      .landing-header p {
+        color: var(--sub);
+        font-size: 1.125rem;
+        max-width: 460px;
+        margin: 0 auto;
+      }
+
+      /* Business Picker */
+      .place-card {
+        background: var(--card);
+        border: 1px solid var(--border);
+        border-radius: 12px;
+        padding: 20px;
+        width: 100%;
+        max-width: 400px;
+        margin-bottom: 40px;
+        box-shadow: var(--shadow);
+      }
+
+      .place-card h3 {
+        font-size: 0.75rem;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+        color: var(--sub);
+        margin-bottom: 12px;
+      }
+
+      #pac-input {
+        width: 100%;
+        background: var(--bg);
+        border: 1px solid var(--border);
+        color: var(--text);
+        padding: 10px 12px;
+        border-radius: 8px;
+        outline: none;
+        font-size: 0.95rem;
+        margin-bottom: 12px;
+        transition: border-color 0.15s;
+      }
+
+      #pac-input:focus {
+        border-color: var(--accent);
+        box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.1);
+      }
+
+      #map {
+        width: 100%;
+        height: 120px;
+        border-radius: 8px;
+        background: var(--muted);
+        margin-bottom: 12px;
+        opacity: 0.8;
+      }
+
+      /* Hide map clutter */
+      .gmnoprint,
+      .gm-style-cc {
+        display: none !important;
+      }
+
+      .place-meta {
+        font-size: 0.85rem;
+        color: var(--sub);
+      }
+
+      .place-meta strong {
+        color: var(--text);
+      }
+      .place-meta .selected {
+        color: var(--success);
+        font-weight: 500;
+      }
+
+      /* The Orb - Minimalist */
+      .orb-container {
+        position: relative;
+        width: 120px;
+        height: 120px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        margin-bottom: 24px;
+        cursor: pointer;
+        transition: transform 0.2s ease;
+      }
+
+      .orb-container:hover {
+        transform: scale(1.05);
+      }
+      .orb-container:active {
+        transform: scale(0.95);
+      }
+
+      .orb {
+        width: 80px;
+        height: 80px;
+        border-radius: 50%;
+        background: var(--text); /* Solid dark/light circle */
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1);
+        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        position: relative;
+        z-index: 2;
+      }
+
+      .orb-icon {
+        font-size: 32px;
+        color: var(--bg); /* Invert color */
+      }
+
+      /* Pulse Animation */
+      .orb-ring {
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        width: 80px;
+        height: 80px;
+        border-radius: 50%;
+        border: 1px solid var(--text);
+        opacity: 0;
+        z-index: 1;
+      }
+
+      .orb-container.speaking .orb {
+        transform: scale(1.1);
+        background: var(--accent);
+      }
+
+      .orb-container.speaking .orb-icon {
+        color: white;
+      }
+
+      .orb-container.speaking .orb-ring {
+        animation: ripple 1.5s linear infinite;
+      }
+
+      .orb-container.speaking .orb-ring:nth-child(2) {
+        animation-delay: 0.5s;
+      }
+      .orb-container.speaking .orb-ring:nth-child(3) {
+        animation-delay: 1s;
+      }
+
+      @keyframes ripple {
+        0% {
+          width: 80px;
+          height: 80px;
+          opacity: 0.5;
+          border-width: 2px;
+        }
+        100% {
+          width: 200px;
+          height: 200px;
+          opacity: 0;
+          border-width: 0px;
+        }
+      }
+
+      .orb-status {
+        font-size: 0.95rem;
+        font-weight: 500;
+        color: var(--text);
+        margin-bottom: 4px;
+      }
+
+      .orb-hint {
+        font-size: 0.85rem;
+        color: var(--sub);
+      }
+
+      /* My Projects Section */
+      .projects-section {
+        width: 100%;
+        max-width: 500px;
+        margin-top: 40px;
+      }
+
+      .projects-header {
+        font-size: 0.9rem;
+        font-weight: 600;
+        color: var(--text);
+        margin-bottom: 16px;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+      }
+
+      .projects-list {
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+        max-height: 300px;
+        overflow-y: auto;
+      }
+
+      .project-item {
+        background: var(--card);
+        border: 1px solid var(--border);
+        border-radius: 8px;
+        padding: 12px 16px;
+        cursor: pointer;
+        transition: all 0.2s;
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+      }
+
+      .project-item:hover {
+        border-color: var(--accent);
+        background: var(--muted);
+      }
+
+      .project-title {
+        font-size: 0.9rem;
+        font-weight: 500;
+        color: var(--text);
+        display: -webkit-box;
+        -webkit-line-clamp: 1;
+        -webkit-box-orient: vertical;
+        overflow: hidden;
+      }
+
+      .project-meta {
+        font-size: 0.75rem;
+        color: var(--sub);
+        display: flex;
+        align-items: center;
+        gap: 12px;
+      }
+
+      .project-description {
+        font-size: 0.8rem;
+        color: var(--sub);
+        display: -webkit-box;
+        -webkit-line-clamp: 2;
+        -webkit-box-orient: vertical;
+        overflow: hidden;
+        line-height: 1.4;
+      }
+
+      .projects-empty {
+        text-align: center;
+        padding: 24px;
+        color: var(--sub);
+        font-size: 0.85rem;
+      }
+
+      .projects-loading {
+        text-align: center;
+        padding: 16px;
+        color: var(--sub);
+        font-size: 0.85rem;
+      }
+
+      /* Transcript */
+      .transcript {
+        position: fixed;
+        bottom: 40px;
+        left: 50%;
+        transform: translateX(-50%) translateY(20px);
+        background: var(--card);
+        border: 1px solid var(--border);
+        padding: 12px 24px;
+        border-radius: 99px;
+        box-shadow: var(--shadow);
+        font-size: 0.95rem;
+        color: var(--text);
+        opacity: 0;
+        transition: all 0.3s ease;
+        max-width: 90%;
+        text-align: center;
+        pointer-events: none;
+      }
+
+      .transcript.visible {
+        opacity: 1;
+        transform: translateX(-50%) translateY(0);
+      }
+
+      /* BUILDER SCREEN */
+      .builder {
+        display: none;
+        grid-template-columns: 320px 1fr;
+        height: 100vh;
+        background: var(--bg);
+        opacity: 0;
+        transition: opacity 0.5s ease;
+      }
+
+      .builder.visible {
+        display: grid;
+        opacity: 1;
+      }
+
+      /* Sidebar */
+      .sidebar {
+        background: var(--card);
+        border-right: 1px solid var(--border);
+        display: flex;
+        flex-direction: column;
+        z-index: 5;
+      }
+
+      .sidebar-header {
+        padding: 16px 20px;
+        border-bottom: 1px solid var(--border);
+        font-weight: 600;
+        font-size: 0.95rem;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        color: var(--text);
+      }
+
+      .chat {
+        flex: 1;
+        overflow-y: auto;
+        padding: 20px;
+        display: flex;
+        flex-direction: column;
+        gap: 16px;
+      }
+
+      .msg {
+        display: flex;
+        gap: 12px;
+        align-items: flex-start;
+      }
+
+      .msg .avatar {
+        width: 28px;
+        height: 28px;
+        border-radius: 6px;
+        background: var(--muted);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 14px;
+        flex-shrink: 0;
+      }
+
+      .msg.user .avatar {
+        background: var(--text);
+        color: var(--bg);
+      }
+      .msg.bot .avatar {
+        background: var(--accent);
+        color: white;
+      }
+
+      .msg .bubble {
+        background: var(--muted);
+        padding: 10px 14px;
+        border-radius: 12px;
+        border-top-left-radius: 2px;
+        font-size: 0.9rem;
+        line-height: 1.5;
+        color: var(--text);
+        white-space: pre-wrap;
+      }
+
+      .msg.user .bubble {
+        background: var(--card);
+        border: 1px solid var(--border);
+        border-top-left-radius: 12px;
+        border-top-right-radius: 2px;
+      }
+
+      .composer {
+        padding: 16px;
+        border-top: 1px solid var(--border);
+        display: flex;
+        gap: 10px;
+        background: var(--card);
+      }
+
+      .composer textarea {
+        flex: 1;
+        background: var(--bg);
+        border: 1px solid var(--border);
+        color: var(--text);
+        padding: 10px 12px;
+        border-radius: 8px;
+        outline: none;
+        resize: none;
+        font-size: 0.9rem;
+        min-height: 42px;
+        max-height: 100px;
+        font-family: inherit;
+      }
+
+      .composer textarea:focus {
+        border-color: var(--accent);
+      }
+
+      .composer button {
+        background: var(--text);
+        color: var(--bg);
+        border: none;
+        padding: 0 16px;
+        border-radius: 8px;
+        font-weight: 500;
+        font-size: 0.9rem;
+        cursor: pointer;
+        transition: opacity 0.2s;
+      }
+
+      .composer button:hover {
+        opacity: 0.9;
+      }
+      .composer button:disabled {
+        opacity: 0.5;
+        cursor: not-allowed;
+      }
+
+      /* Preview Area */
+      .preview {
+        display: flex;
+        flex-direction: column;
+        background: var(--muted);
+        position: relative;
+      }
+
+      .preview-toolbar {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        padding: 10px 20px;
+        background: var(--card);
+        border-bottom: 1px solid var(--border);
+      }
+
+      .preview-toolbar button {
+        background: transparent;
+        color: var(--text);
+        border: 1px solid var(--border);
+        padding: 6px 10px;
+        border-radius: 6px;
+        cursor: pointer;
+        font-size: 1rem;
+      }
+
+      .preview-toolbar button:hover {
+        background: var(--muted);
+      }
+
+      .preview-toolbar .addr {
+        flex: 1;
+        background: var(--muted);
+        padding: 6px 12px;
+        border-radius: 6px;
+        font-size: 0.85rem;
+        color: var(--sub);
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
+
+      .preview-wrapper {
+        flex: 1;
+        position: relative;
+        background: white;
+        box-shadow: inset 0 0 20px rgba(0, 0, 0, 0.02);
+      }
+
+      iframe {
+        width: 100%;
+        height: 100%;
+        border: none;
+      }
+
+      /* Loading Overlay */
+      .loading-overlay {
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: rgba(255, 255, 255, 0.9);
+        backdrop-filter: blur(4px);
+        display: none;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        z-index: 20;
+      }
+
+      @media (prefers-color-scheme: dark) {
         .loading-overlay {
-            position: absolute;
-            top: 0;
-            left: 0;
-            right: 0;
-            bottom: 0;
-            background: rgba(10, 14, 20, 0.95);
-            display: none;
-            flex-direction: column;
-            justify-content: center;
-            align-items: center;
-            z-index: 10;
+          background: rgba(9, 9, 11, 0.9);
         }
+      }
 
-        .loading-overlay.visible {
-            display: flex;
-        }
+      .loading-overlay.visible {
+        display: flex;
+      }
 
-        .loading-spinner {
-            width: 50px;
-            height: 50px;
-            border: 3px solid rgba(124, 141, 255, 0.2);
-            border-top-color: var(--accent);
-            border-radius: 50%;
-            animation: spin 1s linear infinite;
-            margin-bottom: 18px;
-        }
+      .loading-spinner {
+        width: 40px;
+        height: 40px;
+        border: 3px solid var(--muted);
+        border-top-color: var(--text);
+        border-radius: 50%;
+        animation: spin 0.8s linear infinite;
+        margin-bottom: 16px;
+      }
 
-        @keyframes spin {
-            100% {
-                transform: rotate(360deg);
-            }
+      @keyframes spin {
+        to {
+          transform: rotate(360deg);
         }
+      }
 
-        .loading-text {
-            font-size: 1.1rem;
-            font-weight: 500;
-        }
+      .loading-text {
+        font-size: 1rem;
+        font-weight: 500;
+        color: var(--text);
+      }
+      .loading-subtext {
+        font-size: 0.85rem;
+        color: var(--sub);
+        margin-top: 4px;
+      }
 
-        .loading-subtext {
-            color: var(--sub);
-            margin-top: 6px;
-            font-size: 0.9rem;
-        }
+      /* Permission Overlay */
+      .permission-overlay {
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: var(--bg);
+        z-index: 1000;
+        display: none;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        padding: 40px;
+      }
 
-        .permission-overlay {
-            position: fixed;
-            top: 0;
-            left: 0;
-            right: 0;
-            bottom: 0;
-            background: rgba(10, 14, 20, 0.95);
-            display: none;
-            flex-direction: column;
-            justify-content: center;
-            align-items: center;
-            z-index: 1000;
-            text-align: center;
-            padding: 40px;
-        }
+      .permission-overlay.visible {
+        display: flex;
+      }
+      .permission-overlay h2 {
+        margin-bottom: 12px;
+      }
+      .permission-overlay p {
+        color: var(--sub);
+        margin-bottom: 24px;
+        max-width: 400px;
+        text-align: center;
+      }
 
-        .permission-overlay.visible {
-            display: flex;
-        }
+      .permission-overlay button {
+        background: var(--text);
+        color: var(--bg);
+        padding: 12px 24px;
+        border-radius: 8px;
+        border: none;
+        font-weight: 500;
+        cursor: pointer;
+      }
 
-        .permission-overlay h2 {
-            font-size: 1.4rem;
-            margin-bottom: 14px;
-        }
+      /* Mode Switch */
+      .mode-switch {
+        position: fixed;
+        top: 20px;
+        right: 20px;
+        z-index: 100;
+      }
 
-        .permission-overlay p {
-            color: var(--sub);
-            max-width: 360px;
-            margin-bottom: 22px;
-        }
+      .mode-switch a {
+        color: var(--sub);
+        text-decoration: none;
+        font-size: 0.85rem;
+        padding: 8px 12px;
+        background: var(--card);
+        border: 1px solid var(--border);
+        border-radius: 8px;
+        transition: all 0.2s;
+      }
 
-        .permission-overlay button {
-            background: linear-gradient(135deg, var(--accent), #5569ff);
-            color: white;
-            border: none;
-            padding: 12px 28px;
-            border-radius: 10px;
-            font-weight: 600;
-            cursor: pointer;
-        }
-
-        /* Mode Switch */
-        .mode-switch {
-            position: fixed;
-            top: 20px;
-            right: 20px;
-            background: var(--card);
-            border: 1px solid rgba(255, 255, 255, 0.08);
-            padding: 10px 16px;
-            border-radius: 10px;
-            font-size: 0.85rem;
-            z-index: 1000;
-        }
-
-        .mode-switch a {
-            color: var(--accent);
-            text-decoration: none;
-        }
-
-        .mode-switch a:hover {
-            text-decoration: underline;
-        }
+      .mode-switch a:hover {
+        color: var(--text);
+        border-color: var(--text);
+      }
     </style>
-</head>
+  </head>
 
-<body>
+  <body>
     <!-- Mode Switch -->
     <div class="mode-switch">
-        <a href="/text">⌨️ Switch to Text Mode</a>
+      <a href="/text">⌨️ Switch to Text Mode</a>
     </div>
 
     <!-- Animated Background -->
     <div class="bg-animation">
-        <div class="bg-blob bg-blob-1"></div>
-        <div class="bg-blob bg-blob-2"></div>
-        <div class="bg-blob bg-blob-3"></div>
-        <div class="particles" id="particles"></div>
+      <div class="bg-blob bg-blob-1"></div>
+      <div class="bg-blob bg-blob-2"></div>
+      <div class="bg-blob bg-blob-3"></div>
+      <div class="particles" id="particles"></div>
     </div>
 
     <!-- Landing Screen -->
     <div class="landing" id="landing">
-        <div class="landing-header">
-            <h1><span class="icon">🎙️</span> <span class="title-gradient">Website Builder</span></h1>
-            <p>Speak to our AI assistant to create your website. Choose a business below to get started.</p>
-        </div>
+      <div class="landing-header">
+        <h1>
+          <!-- <span class="icon">🎙️</span> -->
+          <span class="title-gradient">Website Builder</span>
+        </h1>
+        <p>
+          Speak to our AI assistant to create your website. Choose a business
+          below to get started.
+        </p>
+      </div>
 
-        <div class="place-card">
-            <h3>📍 Business (Optional)</h3>
-            <input id="pac-input" type="text" placeholder="Search for your business..." />
-            <div id="map"></div>
-            <div class="place-meta" id="placeMeta">Select a business to include its info.</div>
+      <div class="place-card">
+        <h3>📍 Business (Optional)</h3>
+        <input
+          id="pac-input"
+          type="text"
+          placeholder="Search for your business..."
+        />
+        <div id="map"></div>
+        <div class="place-meta" id="placeMeta">
+          Select a business to include its info.
         </div>
+      </div>
 
-        <div class="orb-container" id="orbContainer">
-            <div class="orb-ring"></div>
-            <div class="orb-ring"></div>
-            <div class="orb-ring"></div>
-            <div class="orb" id="orb"></div>
+      <div class="orb-container" id="orbContainer">
+        <div class="orb-ring"></div>
+        <div class="orb-ring"></div>
+        <div class="orb-ring"></div>
+        <div class="orb" id="orb"></div>
+      </div>
+      <div class="orb-status" id="orbStatus">Tap to start</div>
+      <div class="orb-hint">Click the orb to begin voice conversation</div>
+
+      <!-- My Projects Section -->
+      <div class="projects-section" id="projectsSection">
+        <div class="projects-header">
+          <span>📁</span>
+          <span>My Projects</span>
         </div>
-        <div class="orb-status" id="orbStatus">Tap to start</div>
-        <div class="orb-hint">Click the orb to begin voice conversation</div>
+        <div class="projects-list" id="projectsList">
+          <div class="projects-loading">Loading projects...</div>
+        </div>
+      </div>
 
-        <div class="transcript" id="transcript"></div>
+      <div class="transcript" id="transcript"></div>
     </div>
 
     <!-- Builder Screen -->
     <div class="builder" id="builder">
-        <div class="sidebar">
-            <div class="sidebar-header">💬 Chat with AI</div>
-            <div class="chat" id="chat"></div>
-            <form class="composer" id="chatForm">
-                <textarea id="chatInput" placeholder="Describe your changes..." rows="1"></textarea>
-                <button type="submit" id="sendBtn">Send</button>
-            </form>
-        </div>
+      <div class="sidebar">
+        <div class="sidebar-header">💬 Chat with AI</div>
+        <div class="chat" id="chat"></div>
+        <form class="composer" id="chatForm">
+          <textarea
+            id="chatInput"
+            placeholder="Describe your changes..."
+            rows="1"
+          ></textarea>
+          <button type="submit" id="sendBtn">Send</button>
+        </form>
+      </div>
 
-        <div class="preview">
-            <div class="preview-toolbar">
-                <button id="refreshBtn">⟳</button>
-                <div class="addr" id="previewAddr">about:blank</div>
-            </div>
-            <div class="preview-wrapper">
-                <iframe id="siteFrame" src="about:blank"></iframe>
-                <div class="loading-overlay" id="loadingOverlay">
-                    <div class="loading-spinner"></div>
-                    <div class="loading-text">Building Your Website</div>
-                    <div class="loading-subtext">This may take a minute...</div>
-                </div>
-            </div>
+      <div class="preview">
+        <div class="preview-toolbar">
+          <button id="refreshBtn">⟳</button>
+          <div class="addr" id="previewAddr">about:blank</div>
         </div>
+        <div class="preview-wrapper">
+          <iframe id="siteFrame" src="about:blank"></iframe>
+          <div class="loading-overlay" id="loadingOverlay">
+            <div class="loading-spinner"></div>
+            <div class="loading-text">Building Your Website</div>
+            <div class="loading-subtext">This may take a minute...</div>
+          </div>
+        </div>
+      </div>
     </div>
 
     <!-- Microphone Permission -->
     <div class="permission-overlay" id="permissionOverlay">
-        <h2>🎤 Microphone Access</h2>
-        <p>We need access to your microphone to have a voice conversation.</p>
-        <button id="allowMicBtn">Allow Microphone</button>
+      <h2>🎤 Microphone Access</h2>
+      <p>We need access to your microphone to have a voice conversation.</p>
+      <button id="allowMicBtn">Allow Microphone</button>
     </div>
 
     <script>
-        // ========================================
-        // Create floating particles
-        // ========================================
-        const particlesContainer = document.getElementById('particles');
-        for (let i = 0; i < 20; i++) {
-            const particle = document.createElement('div');
-            particle.className = 'particle';
-            particle.style.left = Math.random() * 100 + '%';
-            particle.style.animationDelay = Math.random() * 15 + 's';
-            particle.style.animationDuration = (15 + Math.random() * 10) + 's';
-            particlesContainer.appendChild(particle);
+      // ========================================
+      // Create floating particles
+      // ========================================
+      const particlesContainer = document.getElementById("particles");
+      for (let i = 0; i < 20; i++) {
+        const particle = document.createElement("div");
+        particle.className = "particle";
+        particle.style.left = Math.random() * 100 + "%";
+        particle.style.animationDelay = Math.random() * 15 + "s";
+        particle.style.animationDuration = 15 + Math.random() * 10 + "s";
+        particlesContainer.appendChild(particle);
+      }
+
+      // ========================================
+      // State
+      // ========================================
+      let siteId = null;
+      let selectedPlaceId = null;
+      let selectedPlaceName = null;
+      let ws = null;
+      let isListening = false;
+
+      const $ = (s) => document.querySelector(s);
+      const landing = $("#landing");
+      const builder = $("#builder");
+      const orbContainer = $("#orbContainer");
+      const orb = $("#orb");
+      const orbStatus = $("#orbStatus");
+      const transcript = $("#transcript");
+      const chat = $("#chat");
+      const chatForm = $("#chatForm");
+      const chatInput = $("#chatInput");
+      const sendBtn = $("#sendBtn");
+      const siteFrame = $("#siteFrame");
+      const loadingOverlay = $("#loadingOverlay");
+      const previewAddr = $("#previewAddr");
+      const refreshBtn = $("#refreshBtn");
+      const placeMeta = $("#placeMeta");
+      const permissionOverlay = $("#permissionOverlay");
+      const allowMicBtn = $("#allowMicBtn");
+
+      // ========================================
+      // Seamless Audio Player
+      // ========================================
+      class SeamlessAudioPlayer {
+        constructor(sampleRate = 24000) {
+          this.sampleRate = sampleRate;
+          this.context = null;
+          this.nextPlayTime = 0;
+          this.scheduledSources = [];
+          this.isPlaying = false;
         }
 
-        // ========================================
-        // State
-        // ========================================
-        let siteId = null;
-        let selectedPlaceId = null;
-        let selectedPlaceName = null;
-        let ws = null;
-        let isListening = false;
-
-        const $ = s => document.querySelector(s);
-        const landing = $('#landing');
-        const builder = $('#builder');
-        const orbContainer = $('#orbContainer');
-        const orb = $('#orb');
-        const orbStatus = $('#orbStatus');
-        const transcript = $('#transcript');
-        const chat = $('#chat');
-        const chatForm = $('#chatForm');
-        const chatInput = $('#chatInput');
-        const sendBtn = $('#sendBtn');
-        const siteFrame = $('#siteFrame');
-        const loadingOverlay = $('#loadingOverlay');
-        const previewAddr = $('#previewAddr');
-        const refreshBtn = $('#refreshBtn');
-        const placeMeta = $('#placeMeta');
-        const permissionOverlay = $('#permissionOverlay');
-        const allowMicBtn = $('#allowMicBtn');
-
-        // ========================================
-        // Seamless Audio Player
-        // ========================================
-        class SeamlessAudioPlayer {
-            constructor(sampleRate = 24000) {
-                this.sampleRate = sampleRate;
-                this.context = null;
-                this.nextPlayTime = 0;
-                this.scheduledSources = [];
-                this.isPlaying = false;
-            }
-
-            async init() {
-                if (!this.context || this.context.state === 'closed') {
-                    this.context = new (window.AudioContext || window.webkitAudioContext)({ sampleRate: this.sampleRate });
-                }
-                if (this.context.state === 'suspended') {
-                    await this.context.resume();
-                }
-            }
-
-            async playBase64(base64Data) {
-                await this.init();
-                try {
-                    const binaryString = atob(base64Data);
-                    const bytes = new Uint8Array(binaryString.length);
-                    for (let i = 0; i < binaryString.length; i++) {
-                        bytes[i] = binaryString.charCodeAt(i);
-                    }
-
-                    const int16View = new Int16Array(bytes.buffer);
-                    const float32Array = new Float32Array(int16View.length);
-                    for (let i = 0; i < int16View.length; i++) {
-                        float32Array[i] = int16View[i] / 32768;
-                    }
-
-                    const audioBuffer = this.context.createBuffer(1, float32Array.length, this.sampleRate);
-                    audioBuffer.getChannelData(0).set(float32Array);
-
-                    const currentTime = this.context.currentTime;
-                    if (this.nextPlayTime <= currentTime) {
-                        this.nextPlayTime = currentTime + 0.02;
-                    }
-
-                    const source = this.context.createBufferSource();
-                    source.buffer = audioBuffer;
-                    source.connect(this.context.destination);
-                    source.start(this.nextPlayTime);
-
-                    const endTime = this.nextPlayTime + audioBuffer.duration;
-                    this.scheduledSources.push({ source, endTime });
-                    this.nextPlayTime = endTime;
-                    this.isPlaying = true;
-                    orbContainer.classList.add('speaking');
-
-                    source.onended = () => {
-                        this.scheduledSources = this.scheduledSources.filter(s => s.source !== source);
-                        if (this.scheduledSources.length === 0) {
-                            setTimeout(() => {
-                                if (this.scheduledSources.length === 0) {
-                                    this.isPlaying = false;
-                                    orbContainer.classList.remove('speaking');
-                                }
-                            }, 50);
-                        }
-                    };
-                } catch (e) {
-                    console.error('Error playing audio chunk:', e);
-                }
-            }
-
-            stop() {
-                this.scheduledSources.forEach(({ source }) => {
-                    try { source.stop(); } catch (e) { }
-                });
-                this.scheduledSources = [];
-                this.nextPlayTime = 0;
-                this.isPlaying = false;
-                if (this.context) {
-                    this.nextPlayTime = this.context.currentTime;
-                }
-                orbContainer.classList.remove('speaking');
-            }
+        async init() {
+          if (!this.context || this.context.state === "closed") {
+            this.context = new (window.AudioContext ||
+              window.webkitAudioContext)({ sampleRate: this.sampleRate });
+          }
+          if (this.context.state === "suspended") {
+            await this.context.resume();
+          }
         }
 
-        const player = new SeamlessAudioPlayer(24000);
+        async playBase64(base64Data) {
+          await this.init();
+          try {
+            const binaryString = atob(base64Data);
+            const bytes = new Uint8Array(binaryString.length);
+            for (let i = 0; i < binaryString.length; i++) {
+              bytes[i] = binaryString.charCodeAt(i);
+            }
 
-        // ========================================
-        // Microphone Input
-        // ========================================
-        let recorderConfig = {
-            context: null,
-            processor: null,
-            stream: null
+            const int16View = new Int16Array(bytes.buffer);
+            const float32Array = new Float32Array(int16View.length);
+            for (let i = 0; i < int16View.length; i++) {
+              float32Array[i] = int16View[i] / 32768;
+            }
+
+            const audioBuffer = this.context.createBuffer(
+              1,
+              float32Array.length,
+              this.sampleRate
+            );
+            audioBuffer.getChannelData(0).set(float32Array);
+
+            const currentTime = this.context.currentTime;
+            if (this.nextPlayTime <= currentTime) {
+              this.nextPlayTime = currentTime + 0.02;
+            }
+
+            const source = this.context.createBufferSource();
+            source.buffer = audioBuffer;
+            source.connect(this.context.destination);
+            source.start(this.nextPlayTime);
+
+            const endTime = this.nextPlayTime + audioBuffer.duration;
+            this.scheduledSources.push({ source, endTime });
+            this.nextPlayTime = endTime;
+            this.isPlaying = true;
+            orbContainer.classList.add("speaking");
+
+            source.onended = () => {
+              this.scheduledSources = this.scheduledSources.filter(
+                (s) => s.source !== source
+              );
+              if (this.scheduledSources.length === 0) {
+                setTimeout(() => {
+                  if (this.scheduledSources.length === 0) {
+                    this.isPlaying = false;
+                    orbContainer.classList.remove("speaking");
+                  }
+                }, 50);
+              }
+            };
+          } catch (e) {
+            console.error("Error playing audio chunk:", e);
+          }
+        }
+
+        stop() {
+          this.scheduledSources.forEach(({ source }) => {
+            try {
+              source.stop();
+            } catch (e) {}
+          });
+          this.scheduledSources = [];
+          this.nextPlayTime = 0;
+          this.isPlaying = false;
+          if (this.context) {
+            this.nextPlayTime = this.context.currentTime;
+          }
+          orbContainer.classList.remove("speaking");
+        }
+      }
+
+      const player = new SeamlessAudioPlayer(24000);
+
+      // ========================================
+      // Microphone Input
+      // ========================================
+      let recorderConfig = {
+        context: null,
+        processor: null,
+        stream: null,
+      };
+
+      async function startMicrophone() {
+        try {
+          const stream = await navigator.mediaDevices.getUserMedia({
+            audio: {
+              sampleRate: 16000,
+              channelCount: 1,
+              echoCancellation: true,
+              noiseSuppression: true,
+              autoGainControl: true,
+            },
+          });
+
+          const context = new (window.AudioContext ||
+            window.webkitAudioContext)({ sampleRate: 16000 });
+          const source = context.createMediaStreamSource(stream);
+
+          // Use 2048 buffer size for lower latency (was 4096)
+          // 2048 samples @ 16kHz = ~128ms latency, acceptable
+          const processor = context.createScriptProcessor(2048, 1, 1);
+
+          processor.onaudioprocess = (e) => {
+            if (!isListening || !ws || ws.readyState !== WebSocket.OPEN) return;
+
+            const inputData = e.inputBuffer.getChannelData(0);
+
+            // Convert Float32 to Int16 PCM and ship raw bytes to the server
+            const int16Array = new Int16Array(inputData.length);
+            for (let i = 0; i < inputData.length; i++) {
+              const s = Math.max(-1, Math.min(1, inputData[i]));
+              int16Array[i] = s < 0 ? s * 0x8000 : s * 0x7fff;
+            }
+
+            // Send as binary to reduce overhead and stutter
+            ws.send(int16Array.buffer);
+          };
+
+          source.connect(processor);
+          processor.connect(context.destination);
+
+          recorderConfig.stream = stream;
+          recorderConfig.context = context;
+          recorderConfig.processor = processor;
+          isListening = true;
+
+          return true;
+        } catch (e) {
+          console.error("Microphone error:", e);
+          return false;
+        }
+      }
+
+      function stopMicrophone() {
+        isListening = false;
+
+        if (recorderConfig.processor) {
+          recorderConfig.processor.disconnect();
+          recorderConfig.processor = null;
+        }
+        if (recorderConfig.stream) {
+          recorderConfig.stream.getTracks().forEach((track) => track.stop());
+          recorderConfig.stream = null;
+        }
+        if (recorderConfig.context) {
+          recorderConfig.context.close();
+          recorderConfig.context = null;
+        }
+      }
+
+      // ========================================
+      // WebSocket
+      // ========================================
+      function connectWebSocket() {
+        const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
+        ws = new WebSocket(`${protocol}//${window.location.host}/ws/live`);
+        ws.binaryType = "arraybuffer";
+
+        ws.onopen = () => {
+          console.log("WebSocket connected");
+          ws.send(
+            JSON.stringify({
+              type: "start",
+              business_name: selectedPlaceName,
+              place_id: selectedPlaceId,
+            })
+          );
+
+          // Allow playback immediately (needed for browsers)
+          player.init();
         };
 
-        async function startMicrophone() {
-            try {
-                const stream = await navigator.mediaDevices.getUserMedia({
-                    audio: {
-                        sampleRate: 16000,
-                        channelCount: 1,
-                        echoCancellation: true,
-                        noiseSuppression: true,
-                        autoGainControl: true
-                    }
-                });
+        ws.onmessage = async (e) => {
+          // Mirror live/web_voice: server sends JSON with base64 audio
+          const msg = JSON.parse(e.data);
+          handleServerMessage(msg);
+        };
 
-                const context = new (window.AudioContext || window.webkitAudioContext)({ sampleRate: 16000 });
-                const source = context.createMediaStreamSource(stream);
+        ws.onerror = (e) => {
+          console.error("WebSocket error:", e);
+          showTranscript("Connection error. Please try again.");
+          orbStatus.textContent = "Error - tap to retry";
+          orbContainer.classList.remove("active", "speaking");
+        };
 
-                // Use 2048 buffer size for lower latency (was 4096)
-                // 2048 samples @ 16kHz = ~128ms latency, acceptable
-                const processor = context.createScriptProcessor(2048, 1, 1);
+        ws.onclose = () => {
+          console.log("WebSocket closed");
+          stopMicrophone();
+          orbContainer.classList.remove("active", "speaking");
+          if (!siteId) {
+            orbStatus.textContent = "Tap to start";
+          }
+        };
+      }
 
-                processor.onaudioprocess = (e) => {
-                    if (!isListening || !ws || ws.readyState !== WebSocket.OPEN) return;
+      function handleServerMessage(msg) {
+        switch (msg.type) {
+          case "started":
+            siteId = msg.site_id;
+            orbContainer.classList.add("active");
+            orbStatus.textContent = "Listening...";
+            break;
 
-                    const inputData = e.inputBuffer.getChannelData(0);
+          case "audio":
+            player.playBase64(msg.data);
+            break;
 
-                    // Convert Float32 to Int16 PCM and ship raw bytes to the server
-                    const int16Array = new Int16Array(inputData.length);
-                    for (let i = 0; i < inputData.length; i++) {
-                        const s = Math.max(-1, Math.min(1, inputData[i]));
-                        int16Array[i] = s < 0 ? s * 0x8000 : s * 0x7FFF;
-                    }
-
-                    // Send as binary to reduce overhead and stutter
-                    ws.send(int16Array.buffer);
-                };
-
-                source.connect(processor);
-                processor.connect(context.destination);
-
-                recorderConfig.stream = stream;
-                recorderConfig.context = context;
-                recorderConfig.processor = processor;
-                isListening = true;
-
-                return true;
-            } catch (e) {
-                console.error('Microphone error:', e);
-                return false;
+          case "transcript":
+            if (msg.role === "assistant") {
+              showTranscript(msg.text);
             }
-        }
+            break;
 
-        function stopMicrophone() {
-            isListening = false;
+          case "interrupted":
+            // User interrupted - stop playback immediately
+            player.stop();
+            orbStatus.textContent = "Listening...";
+            break;
 
-            if (recorderConfig.processor) {
-                recorderConfig.processor.disconnect();
-                recorderConfig.processor = null;
+          case "turn_complete":
+            // AI finished speaking
+            console.log("Turn complete");
+            break;
+
+          case "tool_call":
+            console.log("Tool call:", msg.name, msg.args);
+            break;
+
+          case "conversation_end":
+            // Conversation has ended - stop microphone and prepare for transition
+            stopMicrophone();
+            orbContainer.classList.remove("active", "speaking");
+            orbStatus.textContent = "Building website...";
+            break;
+
+          case "building":
+            // Switch to builder immediately when AI submits description
+            siteId = msg.site_id;
+            stopMicrophone();
+            orbContainer.classList.remove("active", "speaking");
+            // Keep WS open to receive completion event
+            transitionToBuilder(null);
+            pushMessage("bot", `🔧 Building: ${msg.description}`);
+            showLoading(true);
+            break;
+
+          case "complete":
+            siteId = msg.site_id;
+            showLoading(false);
+            updatePreview();
+            if (msg.success) {
+              pushMessage("bot", `✅ Website created!\n\n${msg.response}`);
+              // Refresh projects list
+              loadProjects();
+            } else {
+              pushMessage("bot", `❌ Build failed. Please try again.`);
             }
-            if (recorderConfig.stream) {
-                recorderConfig.stream.getTracks().forEach(track => track.stop());
-                recorderConfig.stream = null;
-            }
-            if (recorderConfig.context) {
-                recorderConfig.context.close();
-                recorderConfig.context = null;
-            }
+            break;
+
+          case "error":
+            console.error("Server error:", msg.message);
+            showTranscript("Error: " + msg.message);
+            orbStatus.textContent = "Error - tap to retry";
+            break;
+        }
+      }
+
+      // ========================================
+      // UI Functions
+      // ========================================
+      function showTranscript(text) {
+        transcript.textContent = text;
+        transcript.classList.add("visible");
+        setTimeout(() => transcript.classList.remove("visible"), 5000);
+      }
+
+      function transitionToBuilder(response) {
+        landing.classList.add("hidden");
+        builder.classList.add("visible");
+
+        if (response) {
+          pushMessage("bot", `✅ Website created!\n\n${response}`);
+        }
+      }
+
+      function showLoading(show) {
+        loadingOverlay.classList.toggle("visible", show);
+      }
+
+      function updatePreview() {
+        if (!siteId) return;
+        const url = `/sites/${siteId}/public/index.html?t=${Date.now()}`;
+        siteFrame.src = url;
+        previewAddr.textContent = url;
+      }
+
+      function pushMessage(role, text) {
+        const msg = document.createElement("div");
+        msg.className = `msg ${role}`;
+        msg.innerHTML = `<div class="avatar"></div><div class="bubble">${escapeHtml(
+          text
+        )}</div>`;
+        chat.appendChild(msg);
+        chat.scrollTop = chat.scrollHeight;
+      }
+
+      function escapeHtml(text) {
+        const div = document.createElement("div");
+        div.textContent = text;
+        return div.innerHTML;
+      }
+
+      function setInputDisabled(disabled) {
+        chatInput.disabled = disabled;
+        sendBtn.disabled = disabled;
+      }
+
+      // ========================================
+      // Event Handlers
+      // ========================================
+
+      // Orb click starts conversation
+      orbContainer.addEventListener("click", async () => {
+        if (orbContainer.classList.contains("active")) {
+          // If active, maybe toggle listening or stop?
+          // For now, let's just make it do nothing or maybe stop.
+          // Let's implement stop on click if active for better UX?
+          return;
         }
 
-        // ========================================
-        // WebSocket
-        // ========================================
-        function connectWebSocket() {
-            const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-            ws = new WebSocket(`${protocol}//${window.location.host}/ws/live`);
-            ws.binaryType = 'arraybuffer';
+        orbStatus.textContent = "Requesting microphone...";
 
-            ws.onopen = () => {
-                console.log('WebSocket connected');
-                ws.send(JSON.stringify({
-                    type: 'start',
-                    business_name: selectedPlaceName,
-                    place_id: selectedPlaceId
-                }));
-
-                // Allow playback immediately (needed for browsers)
-                player.init();
-            };
-
-            ws.onmessage = async (e) => {
-                // Mirror live/web_voice: server sends JSON with base64 audio
-                const msg = JSON.parse(e.data);
-                handleServerMessage(msg);
-            };
-
-            ws.onerror = (e) => {
-                console.error('WebSocket error:', e);
-                showTranscript('Connection error. Please try again.');
-                orbStatus.textContent = 'Error - tap to retry';
-                orbContainer.classList.remove('active', 'speaking');
-            };
-
-            ws.onclose = () => {
-                console.log('WebSocket closed');
-                stopMicrophone();
-                orbContainer.classList.remove('active', 'speaking');
-                if (!siteId) {
-                    orbStatus.textContent = 'Tap to start';
-                }
-            };
+        const micOk = await startMicrophone();
+        if (!micOk) {
+          permissionOverlay.classList.add("visible");
+          orbStatus.textContent = "Microphone denied";
+          return;
         }
 
-        function handleServerMessage(msg) {
-            switch (msg.type) {
-                case 'started':
-                    siteId = msg.site_id;
-                    orbContainer.classList.add('active');
-                    orbStatus.textContent = 'Listening...';
-                    break;
+        orbStatus.textContent = "Connecting...";
+        connectWebSocket();
+      });
 
-                case 'audio':
-                    player.playBase64(msg.data);
-                    break;
+      allowMicBtn.addEventListener("click", () => {
+        permissionOverlay.classList.remove("visible");
+        orbContainer.click();
+      });
 
-                case 'transcript':
-                    if (msg.role === 'assistant') {
-                        showTranscript(msg.text);
-                    }
-                    break;
+      chatForm.addEventListener("submit", async (e) => {
+        e.preventDefault();
+        const text = chatInput.value.trim();
+        if (!text || !siteId) return;
 
-                case 'interrupted':
-                    // User interrupted - stop playback immediately
-                    player.stop();
-                    orbStatus.textContent = 'Listening...';
-                    break;
+        chatInput.value = "";
+        pushMessage("user", text);
+        pushMessage("bot", "🔧 Applying changes...");
+        setInputDisabled(true);
+        loadingOverlay.classList.add("visible");
 
-                case 'turn_complete':
-                    // AI finished speaking
-                    console.log('Turn complete');
-                    break;
+        try {
+          const resp = await fetch("/modify", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              site_id: siteId,
+              instruction: text,
+              place_id: selectedPlaceId,
+            }),
+          });
 
-                case 'tool_call':
-                    console.log('Tool call:', msg.name, msg.args);
-                    break;
+          const data = await resp.json();
 
-                case 'building':
-                    // Switch to builder immediately when AI submits description
-                    siteId = msg.site_id;
-                    stopMicrophone();
-                    if (ws) ws.close();
-                    transitionToBuilder(null);
-                    pushMessage('bot', `🔧 Building: ${msg.description}`);
-                    showLoading(true);
-                    break;
+          if (data.success) {
+            pushMessage("bot", `✅ Done!\n\n${data.response}`);
+            updatePreview();
+          } else {
+            pushMessage("bot", `❌ Error: ${data.error || "Unknown error"}`);
+          }
+        } catch (e) {
+          pushMessage("bot", `❌ Error: ${e.message}`);
+        } finally {
+          setInputDisabled(false);
+          loadingOverlay.classList.remove("visible");
+        }
+      });
 
-                case 'complete':
-                    siteId = msg.site_id;
-                    showLoading(false);
-                    updatePreview();
-                    if (msg.success) {
-                        pushMessage('bot', `✅ Website created!\n\n${msg.response}`);
-                    } else {
-                        pushMessage('bot', `❌ Build failed. Please try again.`);
-                    }
-                    break;
+      refreshBtn.addEventListener("click", updatePreview);
 
-                case 'error':
-                    console.error('Server error:', msg.message);
-                    showTranscript('Error: ' + msg.message);
-                    orbStatus.textContent = 'Error - tap to retry';
-                    break;
-            }
+      chatInput.addEventListener("input", function () {
+        this.style.height = "auto";
+        this.style.height = Math.min(this.scrollHeight, 120) + "px";
+      });
+
+      chatInput.addEventListener("keydown", function (e) {
+        if (e.key === "Enter" && !e.shiftKey) {
+          e.preventDefault();
+          chatForm.requestSubmit();
+        }
+      });
+
+      // ========================================
+      // Google Places
+      // ========================================
+      function initPlacePicker() {
+        const input = $("#pac-input");
+        const mapEl = $("#map");
+
+        if (!window.google || !google.maps || !google.maps.places) {
+          placeMeta.textContent = "Maps not available.";
+          return;
         }
 
-        // ========================================
-        // UI Functions
-        // ========================================
-        function showTranscript(text) {
-            transcript.textContent = text;
-            transcript.classList.add('visible');
-            setTimeout(() => transcript.classList.remove('visible'), 5000);
-        }
-
-        function transitionToBuilder(response) {
-            landing.classList.add('hidden');
-            builder.classList.add('visible');
-
-            if (response) {
-                pushMessage('bot', `✅ Website created!\n\n${response}`);
-            }
-        }
-
-        function showLoading(show) {
-            loadingOverlay.classList.toggle('visible', show);
-        }
-
-        function updatePreview() {
-            if (!siteId) return;
-            const url = `/sites/${siteId}/public/index.html?t=${Date.now()}`;
-            siteFrame.src = url;
-            previewAddr.textContent = url;
-        }
-
-        function pushMessage(role, text) {
-            const msg = document.createElement('div');
-            msg.className = `msg ${role}`;
-            msg.innerHTML = `<div class="avatar"></div><div class="bubble">${escapeHtml(text)}</div>`;
-            chat.appendChild(msg);
-            chat.scrollTop = chat.scrollHeight;
-        }
-
-        function escapeHtml(text) {
-            const div = document.createElement('div');
-            div.textContent = text;
-            return div.innerHTML;
-        }
-
-        function setInputDisabled(disabled) {
-            chatInput.disabled = disabled;
-            sendBtn.disabled = disabled;
-        }
-
-        // ========================================
-        // Event Handlers
-        // ========================================
-
-        // Orb click starts conversation
-        orbContainer.addEventListener('click', async () => {
-            if (orbContainer.classList.contains('active')) {
-                // If active, maybe toggle listening or stop?
-                // For now, let's just make it do nothing or maybe stop.
-                // Let's implement stop on click if active for better UX?
-                return;
-            }
-
-            orbStatus.textContent = 'Requesting microphone...';
-
-            const micOk = await startMicrophone();
-            if (!micOk) {
-                permissionOverlay.classList.add('visible');
-                orbStatus.textContent = 'Microphone denied';
-                return;
-            }
-
-            orbStatus.textContent = 'Connecting...';
-            connectWebSocket();
+        const map = new google.maps.Map(mapEl, {
+          center: { lat: 9.0192, lng: 38.7525 }, // Addis Ababa
+          zoom: 13,
+          disableDefaultUI: true,
+          zoomControl: true,
+          clickableIcons: true,
+          styles: [
+            { elementType: "geometry", stylers: [{ color: "#1a222d" }] },
+            {
+              elementType: "labels.text.stroke",
+              stylers: [{ color: "#1a222d" }],
+            },
+            {
+              elementType: "labels.text.fill",
+              stylers: [{ color: "#8892a0" }],
+            },
+            {
+              featureType: "road",
+              elementType: "geometry",
+              stylers: [{ color: "#2a3545" }],
+            },
+            {
+              featureType: "water",
+              elementType: "geometry",
+              stylers: [{ color: "#0a0e14" }],
+            },
+            {
+              featureType: "poi",
+              elementType: "labels",
+              stylers: [{ visibility: "off" }],
+            },
+          ],
         });
 
-        allowMicBtn.addEventListener('click', () => {
-            permissionOverlay.classList.remove('visible');
-            orbContainer.click();
+        const autocomplete = new google.maps.places.Autocomplete(input, {
+          fields: ["place_id", "geometry", "formatted_address", "name"],
         });
+        autocomplete.bindTo("bounds", map);
 
-        chatForm.addEventListener('submit', async (e) => {
-            e.preventDefault();
-            const text = chatInput.value.trim();
-            if (!text || !siteId) return;
+        const marker = new google.maps.Marker({ map: map });
 
-            chatInput.value = '';
-            pushMessage('user', text);
-            pushMessage('bot', '🔧 Applying changes...');
-            setInputDisabled(true);
-            loadingOverlay.classList.add('visible');
+        function selectPlace(place) {
+          if (!place.geometry) return;
 
-            try {
-                const resp = await fetch('/modify', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        site_id: siteId,
-                        instruction: text,
-                        place_id: selectedPlaceId
-                    })
-                });
+          if (place.geometry.viewport) {
+            map.fitBounds(place.geometry.viewport);
+          } else {
+            map.setCenter(place.geometry.location);
+            map.setZoom(17);
+          }
 
-                const data = await resp.json();
+          marker.setPosition(place.geometry.location);
+          marker.setVisible(true);
 
-                if (data.success) {
-                    pushMessage('bot', `✅ Done!\n\n${data.response}`);
-                    updatePreview();
-                } else {
-                    pushMessage('bot', `❌ Error: ${data.error || 'Unknown error'}`);
-                }
-            } catch (e) {
-                pushMessage('bot', `❌ Error: ${e.message}`);
-            } finally {
-                setInputDisabled(false);
-                loadingOverlay.classList.remove('visible');
-            }
-        });
+          selectedPlaceId = place.place_id;
+          selectedPlaceName = place.name || "";
 
-        refreshBtn.addEventListener('click', updatePreview);
-
-        chatInput.addEventListener('input', function () {
-            this.style.height = 'auto';
-            this.style.height = Math.min(this.scrollHeight, 120) + 'px';
-        });
-
-        chatInput.addEventListener('keydown', function (e) {
-            if (e.key === 'Enter' && !e.shiftKey) {
-                e.preventDefault();
-                chatForm.requestSubmit();
-            }
-        });
-
-        // ========================================
-        // Google Places
-        // ========================================
-        function initPlacePicker() {
-            const input = $('#pac-input');
-            const mapEl = $('#map');
-
-            if (!window.google || !google.maps || !google.maps.places) {
-                placeMeta.textContent = 'Maps not available.';
-                return;
-            }
-
-            const map = new google.maps.Map(mapEl, {
-                center: { lat: 9.0192, lng: 38.7525 }, // Addis Ababa
-                zoom: 13,
-                disableDefaultUI: true,
-                zoomControl: true,
-                clickableIcons: true,
-                styles: [
-                    { elementType: 'geometry', stylers: [{ color: '#1a222d' }] },
-                    { elementType: 'labels.text.stroke', stylers: [{ color: '#1a222d' }] },
-                    { elementType: 'labels.text.fill', stylers: [{ color: '#8892a0' }] },
-                    { featureType: 'road', elementType: 'geometry', stylers: [{ color: '#2a3545' }] },
-                    { featureType: 'water', elementType: 'geometry', stylers: [{ color: '#0a0e14' }] },
-                    { featureType: 'poi', elementType: 'labels', stylers: [{ visibility: 'off' }] }
-                ]
-            });
-
-            const autocomplete = new google.maps.places.Autocomplete(input, {
-                fields: ['place_id', 'geometry', 'formatted_address', 'name']
-            });
-            autocomplete.bindTo('bounds', map);
-
-            const marker = new google.maps.Marker({ map: map });
-
-            function selectPlace(place) {
-                if (!place.geometry) return;
-
-                if (place.geometry.viewport) {
-                    map.fitBounds(place.geometry.viewport);
-                } else {
-                    map.setCenter(place.geometry.location);
-                    map.setZoom(17);
-                }
-
-                marker.setPosition(place.geometry.location);
-                marker.setVisible(true);
-
-                selectedPlaceId = place.place_id;
-                selectedPlaceName = place.name || '';
-
-                placeMeta.innerHTML = `
-          <strong>${place.name || ''}</strong><br>
-          ${place.formatted_address || ''}<br>
+          placeMeta.innerHTML = `
+          <strong>${place.name || ""}</strong><br>
+          ${place.formatted_address || ""}<br>
           <span class="selected">✓ Business selected</span>
         `;
+        }
+
+        autocomplete.addListener("place_changed", () => {
+          selectPlace(autocomplete.getPlace());
+        });
+
+        // Handle click on map POIs
+        map.addListener("click", (e) => {
+          if (e.placeId) {
+            e.stop();
+            const service = new google.maps.places.PlacesService(map);
+            service.getDetails(
+              {
+                placeId: e.placeId,
+                fields: ["place_id", "geometry", "formatted_address", "name"],
+              },
+              (place, status) => {
+                if (
+                  status === google.maps.places.PlacesServiceStatus.OK &&
+                  place
+                ) {
+                  selectPlace(place);
+                  input.value = place.name || "";
+                }
+              }
+            );
+          }
+        });
+      }
+
+      function loadMapsApi() {
+        fetch("/config")
+          .then((r) => r.json())
+          .then((cfg) => {
+            if (!cfg.maps_api_key) {
+              placeMeta.textContent = "No Maps API key.";
+              return;
             }
 
-            autocomplete.addListener('place_changed', () => {
-                selectPlace(autocomplete.getPlace());
-            });
+            const script = document.createElement("script");
+            script.src = `https://maps.googleapis.com/maps/api/js?key=${encodeURIComponent(
+              cfg.maps_api_key
+            )}&libraries=places&callback=initPlacePicker`;
+            script.async = true;
+            script.onerror = () => {
+              placeMeta.textContent = "Failed to load Maps.";
+            };
+            document.head.appendChild(script);
+          })
+          .catch(() => {
+            placeMeta.textContent = "Failed to get config.";
+          });
+      }
 
-            // Handle click on map POIs
-            map.addListener('click', (e) => {
-                if (e.placeId) {
-                    e.stop();
-                    const service = new google.maps.places.PlacesService(map);
-                    service.getDetails({
-                        placeId: e.placeId,
-                        fields: ['place_id', 'geometry', 'formatted_address', 'name']
-                    }, (place, status) => {
-                        if (status === google.maps.places.PlacesServiceStatus.OK && place) {
-                            selectPlace(place);
-                            input.value = place.name || '';
-                        }
-                    });
-                }
-            });
-        }
+      window.initPlacePicker = initPlacePicker;
+      loadMapsApi();
 
-        function loadMapsApi() {
-            fetch('/config')
-                .then(r => r.json())
-                .then(cfg => {
-                    if (!cfg.maps_api_key) {
-                        placeMeta.textContent = 'No Maps API key.';
-                        return;
+      // ========================================
+      // My Projects
+      // ========================================
+      const projectsList = $("#projectsList");
+
+      function formatDate(dateString) {
+        const date = new Date(dateString);
+        const now = new Date();
+        const diffMs = now - date;
+        const diffMins = Math.floor(diffMs / 60000);
+        const diffHours = Math.floor(diffMs / 3600000);
+        const diffDays = Math.floor(diffMs / 86400000);
+
+        if (diffMins < 1) return "Just now";
+        if (diffMins < 60) return `${diffMins}m ago`;
+        if (diffHours < 24) return `${diffHours}h ago`;
+        if (diffDays < 7) return `${diffDays}d ago`;
+        return date.toLocaleDateString();
+      }
+
+      function loadProject(projectSiteId) {
+        siteId = projectSiteId;
+        transitionToBuilder(null);
+        pushMessage("bot", "Loading website...");
+        updatePreview();
+        showLoading(false);
+      }
+
+      async function loadProjects() {
+        try {
+          projectsList.innerHTML =
+            '<div class="projects-loading">Loading projects...</div>';
+
+          const resp = await fetch("/websites?limit=10");
+          const data = await resp.json();
+          const websites = data.websites || [];
+
+          if (websites.length === 0) {
+            projectsList.innerHTML =
+              '<div class="projects-empty">No projects yet. Create your first website!</div>';
+            return;
+          }
+
+          projectsList.innerHTML = websites
+            .map((website) => {
+              const desc = website.description || "No description";
+              const shortDesc =
+                desc.length > 80 ? desc.substring(0, 80) + "..." : desc;
+              const timeAgo = formatDate(website.created_at);
+              const fileCount = website.file_count || 0;
+              const success = website.success !== 0;
+
+              return `
+                <div class="project-item" onclick="loadProject('${
+                  website.site_id
+                }')">
+                  <div class="project-title">${escapeHtml(
+                    website.place_name || "Website"
+                  )}</div>
+                  <div class="project-description">${escapeHtml(
+                    shortDesc
+                  )}</div>
+                  <div class="project-meta">
+                    <span>${timeAgo}</span>
+                    <span>•</span>
+                    <span>${fileCount} files</span>
+                    ${
+                      success
+                        ? '<span style="color: var(--success);">✓</span>'
+                        : '<span style="color: var(--error);">✗</span>'
                     }
-
-                    const script = document.createElement('script');
-                    script.src = `https://maps.googleapis.com/maps/api/js?key=${encodeURIComponent(cfg.maps_api_key)}&libraries=places&callback=initPlacePicker`;
-                    script.async = true;
-                    script.onerror = () => { placeMeta.textContent = 'Failed to load Maps.'; };
-                    document.head.appendChild(script);
-                })
-                .catch(() => { placeMeta.textContent = 'Failed to get config.'; });
+                  </div>
+                </div>
+              `;
+            })
+            .join("");
+        } catch (e) {
+          console.error("Error loading projects:", e);
+          projectsList.innerHTML =
+            '<div class="projects-empty">Failed to load projects</div>';
         }
+      }
 
-        window.initPlacePicker = initPlacePicker;
-        loadMapsApi();
+      // Make loadProject available globally
+      window.loadProject = loadProject;
+
+      // Load projects on page load
+      loadProjects();
     </script>
-</body>
-
+  </body>
 </html>
