@@ -26,7 +26,7 @@ except ImportError:
 def get_llm():
     """Get the Gemini LLM instance.
     
-    Uses gemini-2.0-flash-exp as per the original agent1 configuration.
+    Uses gemini-2.5-flash-exp as per the original agent1 configuration.
     """
     api_key = os.getenv("GOOGLE_API_KEY") or os.getenv("GOOGLE_API_KEY_1")
     if not api_key:

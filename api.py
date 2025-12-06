@@ -3,12 +3,15 @@
 Provides REST API endpoints for building and modifying websites using
 Gemini AI, with Google Places integration for business context.
 """
+import asyncio
+import base64
+import json
 import os
 import uuid
 from pathlib import Path
 from typing import Optional
 
-from fastapi import FastAPI, HTTPException, Query
+from fastapi import FastAPI, HTTPException, Query, WebSocket, WebSocketDisconnect
 from fastapi.responses import FileResponse, HTMLResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
@@ -24,6 +27,7 @@ except ImportError:
 
 from agent import run_agent, build_website
 from places import fetch_place_details, format_business_context
+from live_agent import LiveAssistant
 
 # Configuration
 SITES_DIR = Path(__file__).parent / "sites"
@@ -76,25 +80,90 @@ def get_site_dir(site_id: str) -> Path:
     return site_dir
 
 
-def fetch_business_context(place_id: str) -> Optional[dict]:
+def download_photos_background(place_data: dict, site_dir: Path) -> None:
+    """Download photos in background thread.
+    
+    Args:
+        place_data: Place data with photos array
+        site_dir: Site directory to save photos to
+    """
+    if not place_data.get("photos"):
+        return
+    
+    photos_dir = site_dir / "public" / "images"
+    photos_dir.mkdir(parents=True, exist_ok=True)
+    
+    from places import get_api_key, PLACES_BASE
+    from urllib import request, parse
+    
+    try:
+        api_key = get_api_key()
+    except Exception as e:
+        print(f"⚠️ Cannot download photos: {e}")
+        return
+    
+    for i, photo in enumerate(place_data["photos"][:5]):  # Max 5 photos
+        photo_name = photo.get("name")
+        if not photo_name:
+            continue
+        
+        try:
+            media_url = f"{PLACES_BASE}/{parse.quote(photo_name, safe='/')}/media?maxWidthPx=800"
+            headers = {"X-Goog-Api-Key": api_key}
+            
+            req = request.Request(media_url, headers=headers, method="GET")
+            out_path = photos_dir / f"photo_{i+1}.jpg"
+            
+            with request.urlopen(req, timeout=30) as resp, open(out_path, "wb") as f:
+                f.write(resp.read())
+            
+            print(f"📸 Downloaded photo {i+1}: {out_path}")
+        except Exception as e:
+            print(f"⚠️ Failed to download photo {i+1}: {e}")
+
+
+def fetch_business_context(place_id: str, site_dir: Path = None) -> Optional[dict]:
     """Fetch business context from Google Places API.
+    
+    Photos are NOT downloaded here - call start_photo_download() separately
+    to download in background while agent runs.
     
     Args:
         place_id: Google Places place ID
+        site_dir: Optional site directory (used to determine expected photo paths)
     
     Returns:
-        Dictionary with place_data and formatted context, or None on error
+        Dictionary with place_data, formatted context, and expected photo paths
     """
     if not place_id:
         return None
     
     try:
         place_data = fetch_place_details(place_id)
+        
+        # Generate expected local photo paths (photos will be downloaded in background)
+        local_photos = []
+        if site_dir and place_data.get("photos"):
+            for i in range(min(len(place_data["photos"]), 5)):
+                local_photos.append(f"images/photo_{i+1}.jpg")
+        
+        # Add expected local photos to place_data for the AI
+        if local_photos:
+            place_data["local_photos"] = local_photos
+        
         formatted = format_business_context(place_data)
+        
+        # Tell AI about local photos it should use
+        if local_photos:
+            formatted += f"\n\n**Local Photos (use these paths - photos are being downloaded):**\n"
+            for photo_path in local_photos:
+                formatted += f"  - `{photo_path}`\n"
+        
         return {
             "place_id": place_id,
             "place_data": place_data,
             "formatted": formatted,
+            "local_photos": local_photos,
         }
     except Exception as e:
         print(f"⚠️ Failed to fetch business context: {e}")
@@ -159,11 +228,20 @@ def create_site_scaffold(site_dir: Path):
 
 @app.get("/", response_class=HTMLResponse)
 async def root():
-    """Serve the main application page."""
+    """Serve the main voice-based application page."""
     index_path = Path(__file__).parent / "index.html"
     if index_path.exists():
         return HTMLResponse(content=index_path.read_text(encoding="utf-8"))
     return HTMLResponse(content="<h1>Website Builder</h1><p>index.html not found</p>")
+
+
+@app.get("/text", response_class=HTMLResponse)
+async def text_mode():
+    """Serve the text-based application page (backup mode)."""
+    index_path = Path(__file__).parent / "index_text.html"
+    if index_path.exists():
+        return HTMLResponse(content=index_path.read_text(encoding="utf-8"))
+    return HTMLResponse(content="<h1>Website Builder</h1><p>index_text.html not found</p>")
 
 
 @app.get("/config")
@@ -195,6 +273,8 @@ async def build_site(request: BuildRequest):
     
     This is a synchronous endpoint - it waits for the build to complete.
     """
+    import threading
+    
     # Get or create site_id
     site_id = request.site_id or str(uuid.uuid4())[:8]
     site_dir = get_site_dir(site_id)
@@ -203,14 +283,24 @@ async def build_site(request: BuildRequest):
     create_site_scaffold(site_dir)
     
     # Fetch business context if place_id provided
-    biz_ctx = fetch_business_context(request.place_id)
+    biz_ctx = fetch_business_context(request.place_id, site_dir)
+    
+    # Start photo download in background (runs while agent works)
+    if biz_ctx and biz_ctx.get("place_data", {}).get("photos"):
+        photo_thread = threading.Thread(
+            target=download_photos_background,
+            args=(biz_ctx["place_data"], site_dir),
+            daemon=True
+        )
+        photo_thread.start()
+        print("📸 Started background photo download...")
     
     print(f"\n🏗️ Building site {site_id}...")
     print(f"📝 Spec: {request.spec[:100]}...")
     if biz_ctx:
         print(f"🏢 Business: {biz_ctx.get('place_data', {}).get('displayName', {}).get('text', 'Unknown')}")
     
-    # Run the agent
+    # Run the agent (photos download in parallel)
     result = run_agent(
         session_dir=site_dir,
         user_request=request.spec,
@@ -233,13 +323,24 @@ async def modify_site(request: ModifyRequest):
     
     This is a synchronous endpoint - it waits for the modification to complete.
     """
+    import threading
+    
     site_dir = get_site_dir(request.site_id)
     
     if not site_dir.exists():
         raise HTTPException(status_code=404, detail=f"Site {request.site_id} not found")
     
     # Fetch business context if place_id provided
-    biz_ctx = fetch_business_context(request.place_id)
+    biz_ctx = fetch_business_context(request.place_id, site_dir)
+    
+    # Start photo download in background if new photos
+    if biz_ctx and biz_ctx.get("place_data", {}).get("photos"):
+        photo_thread = threading.Thread(
+            target=download_photos_background,
+            args=(biz_ctx["place_data"], site_dir),
+            daemon=True
+        )
+        photo_thread.start()
     
     print(f"\n🔧 Modifying site {request.site_id}...")
     print(f"📝 Instruction: {request.instruction[:100]}...")
@@ -287,6 +388,277 @@ async def fetch_place(place_id: str = Query(...)):
         return biz_ctx
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+
+
+# ============================================================================
+# WebSocket Live Voice Session - OPTIMIZED for smooth audio
+# ============================================================================
+
+@app.websocket("/ws/live")
+async def live_voice_session(websocket: WebSocket):
+    """WebSocket endpoint for live voice conversation with Gemini.
+    
+    OPTIMIZED: Uses direct streaming pattern like live/web_voice for smooth audio.
+    No intermediate queues or callbacks - direct async streaming.
+    
+    Protocol:
+    - Client sends: {"type": "start", "business_name": "...", "place_id": "..."} to start
+    - Client sends: raw PCM bytes for audio (preferred) or {"type": "audio", "data": "<base64>"}
+    - Client sends: {"type": "end"} to stop
+    
+    Server sends:
+    - {"type": "audio", "data": "<base64 audio>"} for response audio
+    - {"type": "transcript", "role": "assistant", "text": "..."} for transcripts
+    - {"type": "interrupted"} when user interrupts
+    - {"type": "turn_complete"} when AI finishes speaking
+    - {"type": "building", "site_id": "...", "description": "..."} when starting build
+    - {"type": "complete", "site_id": "...", "files": [...]} when build is done
+    - {"type": "error", "message": "..."} for errors
+    """
+    await websocket.accept()
+    print("🔌 WebSocket connected")
+    
+    from live_agent import get_client, get_live_config, MODEL, SEND_SAMPLE_RATE
+    from google.genai import types
+    
+    site_id = None
+    place_id = None
+    session = None
+    session_ctx = None
+    
+    try:
+        # Wait for start message
+        data = await websocket.receive()
+        msg = json.loads(data.get("text", "{}")) if "text" in data else {}
+        
+        if msg.get("type") != "start":
+            await websocket.send_json({"type": "error", "message": "Expected start message"})
+            return
+        
+        business_name = msg.get("business_name")
+        place_id = msg.get("place_id")
+        
+        print(f"🎤 Starting live session. Business: {business_name}")
+        
+        # Initialize site
+        site_id = str(uuid.uuid4())[:8]
+        site_dir = get_site_dir(site_id)
+        create_site_scaffold(site_dir)
+        
+        # Connect to Gemini
+        client = get_client()
+        config = get_live_config(business_name, place_id)
+        
+        session_ctx = client.aio.live.connect(model=MODEL, config=config)
+        session = await session_ctx.__aenter__()
+        
+        print("✅ Connected to Gemini Live API")
+        await websocket.send_json({"type": "started", "site_id": site_id})
+        
+        # Track if we should stop
+        should_stop = False
+        
+        async def receive_from_client():
+            """Receive audio from browser and send directly to Gemini."""
+            nonlocal should_stop
+            try:
+                while not should_stop:
+                    data = await websocket.receive()
+                    
+                    if "bytes" in data and data["bytes"]:
+                        # Binary audio - send directly (lowest latency)
+                        await session.send_realtime_input(
+                            audio=types.Blob(
+                                data=data["bytes"],
+                                mime_type=f"audio/pcm;rate={SEND_SAMPLE_RATE}"
+                            )
+                        )
+                    elif "text" in data:
+                        msg = json.loads(data["text"])
+                        msg_type = msg.get("type", "")
+                        
+                        if msg_type == "audio":
+                            # Base64 audio fallback
+                            audio_payload = msg.get("data", "")
+                            if audio_payload:
+                                audio_data = base64.b64decode(audio_payload)
+                                await session.send_realtime_input(
+                                    audio=types.Blob(
+                                        data=audio_data,
+                                        mime_type=f"audio/pcm;rate={SEND_SAMPLE_RATE}"
+                                    )
+                                )
+                        elif msg_type == "text":
+                            # Text message
+                            text = msg.get("text", "")
+                            if text:
+                                await session.send_client_content(
+                                    turns={"role": "user", "parts": [{"text": text}]},
+                                    turn_complete=True,
+                                )
+                        elif msg_type == "end":
+                            should_stop = True
+                            break
+                            
+            except WebSocketDisconnect:
+                should_stop = True
+            except Exception as e:
+                print(f"❌ Client receive error: {e}")
+                should_stop = True
+        
+        async def receive_from_gemini():
+            """Receive responses from Gemini and send to browser."""
+            nonlocal should_stop
+            try:
+                while not should_stop:
+                    turn = session.receive()
+                    
+                    async for response in turn:
+                        if should_stop:
+                            break
+                        
+                        # Extract audio chunks
+                        audio_chunks = []
+                        
+                        sc = getattr(response, "server_content", None)
+                        model_turn = getattr(sc, "model_turn", None) if sc else None
+                        
+                        if model_turn:
+                            for part in getattr(model_turn, "parts", []) or []:
+                                inline = getattr(part, "inline_data", None)
+                                if inline and getattr(inline, "data", None):
+                                    audio_chunks.append(inline.data)
+                        
+                        if not audio_chunks and response.data:
+                            audio_chunks.append(response.data)
+                        
+                        # Send audio immediately
+                        for chunk in audio_chunks:
+                            if chunk:
+                                await websocket.send_json({
+                                    "type": "audio",
+                                    "data": base64.b64encode(chunk).decode("utf-8")
+                                })
+                        
+                        # Send transcription
+                        if sc and getattr(sc, "output_transcription", None):
+                            transcript = sc.output_transcription
+                            if getattr(transcript, "text", None):
+                                await websocket.send_json({
+                                    "type": "transcript",
+                                    "role": "assistant",
+                                    "text": transcript.text
+                                })
+                        
+                        # Handle interruption
+                        if sc and getattr(sc, "interrupted", None):
+                            await websocket.send_json({"type": "interrupted"})
+                        
+                        # Handle turn complete
+                        if sc and getattr(sc, "turn_complete", None):
+                            await websocket.send_json({"type": "turn_complete"})
+                        
+                        # Handle tool calls
+                        if getattr(response, "tool_call", None):
+                            tc = response.tool_call
+                            if getattr(tc, "function_calls", None):
+                                for fc in tc.function_calls:
+                                    fname = getattr(fc, "name", None)
+                                    fargs = getattr(fc, "args", {}) or {}
+                                    
+                                    if isinstance(fargs, str):
+                                        try:
+                                            fargs = json.loads(fargs)
+                                        except:
+                                            pass
+                                    
+                                    await websocket.send_json({
+                                        "type": "tool_call",
+                                        "name": fname,
+                                        "args": dict(fargs) if fargs else {}
+                                    })
+                                    
+                                    if fname == "submit_website_description":
+                                        description = fargs.get("description", "")
+                                        
+                                        # Send tool response
+                                        await session.send_tool_response(
+                                            function_responses=[
+                                                types.FunctionResponse(
+                                                    id=getattr(fc, "id", None),
+                                                    name=fname,
+                                                    response={"result": "ok", "message": "Building started"}
+                                                )
+                                            ]
+                                        )
+                                        
+                                        # Notify client
+                                        await websocket.send_json({
+                                            "type": "building",
+                                            "site_id": site_id,
+                                            "description": description
+                                        })
+                                        
+                                        # Fetch business context
+                                        biz_ctx = fetch_business_context(place_id, site_dir) if place_id else None
+                                        
+                                        # Start photo download in background
+                                        if biz_ctx and biz_ctx.get("place_data", {}).get("photos"):
+                                            import threading
+                                            photo_thread = threading.Thread(
+                                                target=download_photos_background,
+                                                args=(biz_ctx["place_data"], site_dir),
+                                                daemon=True
+                                            )
+                                            photo_thread.start()
+                                            print("📸 Started background photo download...")
+                                        
+                                        # Run agent (photos download in parallel)
+                                        result = run_agent(
+                                            session_dir=site_dir,
+                                            user_request=description,
+                                            biz_ctx=biz_ctx,
+                                            max_steps=30,
+                                        )
+                                        
+                                        # Send completion
+                                        await websocket.send_json({
+                                            "type": "complete",
+                                            "site_id": site_id,
+                                            "files": result.get("files", []),
+                                            "success": result.get("success", False),
+                                            "response": result.get("response", "")
+                                        })
+                                        
+                                        should_stop = True
+                                        return
+                                        
+            except WebSocketDisconnect:
+                should_stop = True
+            except Exception as e:
+                print(f"❌ Gemini receive error: {e}")
+                should_stop = True
+        
+        # Run both tasks concurrently - this is the key for smooth audio!
+        async with asyncio.TaskGroup() as tg:
+            tg.create_task(receive_from_client())
+            tg.create_task(receive_from_gemini())
+                
+    except WebSocketDisconnect:
+        print("🔌 WebSocket disconnected")
+    except Exception as e:
+        print(f"❌ WebSocket error: {e}")
+        try:
+            await websocket.send_json({"type": "error", "message": str(e)})
+        except:
+            pass
+    finally:
+        if session_ctx:
+            try:
+                await session_ctx.__aexit__(None, None, None)
+            except:
+                pass
+        print("🔌 Session closed")
 
 
 # ============================================================================

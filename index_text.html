@@ -1,0 +1,854 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>AI Website Builder | Text Mode</title>
+
+    <style>
+        .mode-switch {
+            position: fixed;
+            top: 8px;
+            right: 20px;
+            background: rgba(255, 255, 255, 0.03);
+            backdrop-filter: blur(20px);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            border-radius: 10px;
+            padding: 8px 16px;
+            font-size: 13px;
+            z-index: 2000;
+        }
+
+        .mode-switch a {
+            color: #7c8dff;
+            text-decoration: none;
+        }
+
+        .mode-switch a:hover {
+            text-decoration: underline;
+        }
+    </style>
+
+    <!-- SEO Meta Tags -->
+    <meta name="description"
+        content="Build professional business websites instantly with AI. Connect your Google Business Profile and let AI create your custom website." />
+    <meta name="keywords" content="AI website builder, Google Places, Gemini AI, website generator" />
+
+    <style>
+        :root {
+            --bg: #0c1016;
+            --card: #161c27;
+            --muted: #1f2735;
+            --text: #f1f5fa;
+            --sub: #b6c0cf;
+            --accent: #7c8dff;
+            --accent-2: #59e3d9;
+            --danger: #ff5d7d;
+        }
+
+        * {
+            box-sizing: border-box;
+        }
+
+        html,
+        body {
+            height: 100%;
+            overflow: hidden;
+        }
+
+        body {
+            margin: 0;
+            background: linear-gradient(180deg, #0c1016 0%, #101a28 100%);
+            font: 14px/1.5 system-ui, -apple-system, Segoe UI, Roboto, Arial;
+            color: var(--text);
+        }
+
+        a {
+            color: var(--accent);
+        }
+
+        /* App Layout */
+        .app {
+            display: grid;
+            grid-template-columns: 1fr;
+            grid-template-rows: 1fr;
+            height: 100vh;
+        }
+
+        .app.has-site {
+            grid-template-columns: 380px 1fr;
+        }
+
+        /* Sidebar */
+        .sidebar {
+            display: none;
+            flex-direction: column;
+            height: 100%;
+            border-right: 1px solid #202a3a;
+            background: rgba(22, 28, 39, 0.95);
+            backdrop-filter: blur(6px);
+        }
+
+        .sidebar.show {
+            display: flex;
+        }
+
+        .sidebar header {
+            padding: 14px 16px;
+            border-bottom: 1px solid #202a3a;
+            font-weight: 600;
+            font-size: 16px;
+        }
+
+        /* Chat */
+        .chat {
+            flex: 1;
+            overflow: auto;
+            padding: 16px;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        .msg {
+            display: flex;
+            gap: 10px;
+            align-items: flex-start;
+            max-width: 100%;
+        }
+
+        .avatar {
+            width: 30px;
+            height: 30px;
+            border-radius: 50%;
+            background: #2d3a52;
+            flex-shrink: 0;
+        }
+
+        .msg.user .avatar {
+            background: linear-gradient(135deg, var(--accent), var(--accent-2));
+        }
+
+        .bubble {
+            max-width: 100%;
+            padding: 10px 12px;
+            border-radius: 14px;
+            background: var(--muted);
+            border: 1px solid #263246;
+            white-space: pre-wrap;
+            overflow-wrap: anywhere;
+        }
+
+        .msg.user .bubble {
+            background: #232f41;
+            border-color: #34445b;
+        }
+
+        /* Composer */
+        .composer {
+            padding: 12px;
+            border-top: 1px solid #202a3a;
+            display: flex;
+            gap: 8px;
+        }
+
+        .composer textarea {
+            flex: 1;
+            background: var(--muted);
+            border: 1px solid #273241;
+            color: var(--text);
+            padding: 12px;
+            border-radius: 12px;
+            outline: none;
+            resize: none;
+            min-height: 44px;
+            max-height: 120px;
+        }
+
+        .composer button {
+            background: linear-gradient(135deg, var(--accent), #5569ff);
+            color: #0c1016;
+            border: 0;
+            padding: 0 20px;
+            border-radius: 12px;
+            font-weight: 600;
+            cursor: pointer;
+            height: 44px;
+        }
+
+        .composer button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        /* Hero */
+        .hero {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
+            padding: 24px;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            z-index: 50;
+            transition: opacity 0.35s ease, transform 0.35s ease;
+        }
+
+        .hero.hidden {
+            opacity: 0;
+            transform: translateY(-8px);
+            pointer-events: none;
+        }
+
+        .hero-card {
+            width: min(880px, 95vw);
+            background: rgba(22, 28, 39, 0.95);
+            border: 1px solid #223044;
+            border-radius: 18px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.35);
+            padding: 24px;
+            display: flex;
+            gap: 24px;
+        }
+
+        /* Place Picker */
+        .place-picker {
+            width: 320px;
+            flex-shrink: 0;
+        }
+
+        .place-picker h3 {
+            margin: 0 0 8px;
+            font-size: 14px;
+            font-weight: 600;
+            text-transform: uppercase;
+            color: var(--sub);
+            letter-spacing: 0.5px;
+        }
+
+        #pac-input {
+            width: 100%;
+            background: var(--muted);
+            border: 1px solid #273241;
+            color: var(--text);
+            padding: 10px 12px;
+            border-radius: 10px;
+            outline: none;
+            font-size: 13px;
+            margin-bottom: 8px;
+        }
+
+        #map {
+            width: 100%;
+            height: 180px;
+            border: 1px solid #223044;
+            border-radius: 12px;
+            overflow: hidden;
+            background: var(--muted);
+        }
+
+        .place-meta {
+            font-size: 12px;
+            color: var(--sub);
+            margin-top: 8px;
+            line-height: 1.4;
+        }
+
+        /* Hero Main */
+        .hero-main {
+            flex: 1;
+        }
+
+        .hero h1 {
+            margin: 0 0 8px;
+            font-size: 24px;
+        }
+
+        .hero p {
+            margin: 0 0 16px;
+            color: var(--sub);
+        }
+
+        .hero-form {
+            display: flex;
+            gap: 10px;
+        }
+
+        .hero textarea {
+            flex: 1;
+            background: var(--muted);
+            border: 1px solid #273241;
+            color: var(--text);
+            padding: 14px;
+            border-radius: 12px;
+            outline: none;
+            resize: none;
+            min-height: 48px;
+            max-height: 120px;
+        }
+
+        .hero button {
+            background: linear-gradient(135deg, var(--accent), #5569ff);
+            color: #0c1016;
+            border: 0;
+            padding: 0 24px;
+            border-radius: 12px;
+            font-weight: 700;
+            cursor: pointer;
+            height: 48px;
+        }
+
+        .tips {
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+            margin-top: 16px;
+        }
+
+        .tip {
+            background: #182434;
+            border: 1px dashed #2e3e53;
+            color: #c9d2dd;
+            border-radius: 999px;
+            padding: 6px 12px;
+            font-size: 12px;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+
+        .tip:hover {
+            background: #1e2d40;
+        }
+
+        /* Preview */
+        .preview {
+            display: none;
+            flex-direction: column;
+            height: 100%;
+            background: #0c1016;
+        }
+
+        .preview.show {
+            display: flex;
+        }
+
+        .preview-toolbar {
+            display: flex;
+            gap: 8px;
+            align-items: center;
+            padding: 8px 12px;
+            border-bottom: 1px solid #202a3a;
+            background: rgba(22, 28, 39, 0.95);
+        }
+
+        .preview-toolbar button {
+            background: #2d3a52;
+            color: var(--text);
+            border: 0;
+            padding: 8px 12px;
+            border-radius: 8px;
+            cursor: pointer;
+        }
+
+        .preview-toolbar .addr {
+            flex: 1;
+            color: var(--sub);
+            font-size: 12px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        .preview-wrapper {
+            position: relative;
+            flex: 1;
+            height: 100%;
+            overflow: hidden;
+        }
+
+        .preview iframe {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            border: 0;
+            background: white;
+        }
+
+        /* Loading Overlay */
+        .loading-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(12, 16, 22, 0.9);
+            display: none;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            z-index: 100;
+            color: var(--text);
+        }
+
+        .loading-overlay.show {
+            display: flex;
+        }
+
+        .spinner {
+            width: 48px;
+            height: 48px;
+            border: 3px solid rgba(124, 141, 255, 0.3);
+            border-top: 3px solid var(--accent);
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin-bottom: 16px;
+        }
+
+        @keyframes spin {
+            100% {
+                transform: rotate(360deg);
+            }
+        }
+
+        .loading-text {
+            font-size: 16px;
+            font-weight: 500;
+        }
+
+        .loading-subtext {
+            font-size: 13px;
+            color: var(--sub);
+            margin-top: 8px;
+        }
+
+        /* Banner */
+        .banner {
+            position: fixed;
+            top: 8px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(255, 255, 255, 0.03);
+            backdrop-filter: blur(20px);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            border-radius: 999px;
+            padding: 5px 20px;
+            font-size: 10px;
+            color: var(--accent-2);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            z-index: 2000;
+        }
+    </style>
+</head>
+
+<body>
+
+    <div class="mode-switch">
+        <a href="/">🎙️ Switch to Voice Mode</a>
+    </div>
+
+    <div class="banner">🚀 Google Cloud Hackathon - AI Website Builder</div>
+
+    <div id="app" class="app">
+        <!-- Sidebar with Chat -->
+        <div class="sidebar" id="sidebar">
+            <header>💬 Website Agent</header>
+            <div class="chat" id="chat"></div>
+            <form class="composer" id="chatForm">
+                <textarea id="chatInput" rows="1" placeholder="Describe your changes..."></textarea>
+                <button type="submit" id="sendBtn">Send</button>
+            </form>
+        </div>
+
+        <!-- Preview Panel -->
+        <div class="preview" id="preview">
+            <div class="preview-toolbar">
+                <button id="refreshBtn" title="Refresh">⟳</button>
+                <div class="addr" id="previewAddr">about:blank</div>
+            </div>
+            <div class="preview-wrapper">
+                <iframe id="siteFrame" src="about:blank"></iframe>
+                <div class="loading-overlay" id="loadingOverlay">
+                    <div class="spinner"></div>
+                    <div class="loading-text">Building Your Website</div>
+                    <div class="loading-subtext">The AI is creating your site. This may take a minute...</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Hero / Landing -->
+    <div class="hero" id="hero">
+        <div class="hero-card">
+            <div class="place-picker">
+                <h3>📍 Business (Optional)</h3>
+                <input id="pac-input" type="text" placeholder="Search your business..." />
+                <div id="map"></div>
+                <div class="place-meta" id="placeMeta">Search for your business to include its info.</div>
+            </div>
+            <div class="hero-main">
+                <h1>✨ Describe Your Website</h1>
+                <p>Select a business (optional) and describe the website you want to create.</p>
+                <form class="hero-form" id="heroForm">
+                    <textarea id="heroInput" rows="2"
+                        placeholder="e.g., Create a modern landing page for my coffee shop with menu and contact info"></textarea>
+                    <button type="submit" id="buildBtn">Build</button>
+                </form>
+                <div class="tips">
+                    <span class="tip">Modern SaaS landing page</span>
+                    <span class="tip">Restaurant with menu</span>
+                    <span class="tip">Portfolio website</span>
+                    <span class="tip">Simple business site with contact form</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // ============================================================================
+        // State
+        // ============================================================================
+        let siteId = null;
+        let selectedPlaceId = null;
+        let selectedPlaceName = null;
+        let isBuilding = false;
+
+        const $ = s => document.querySelector(s);
+        const app = $('#app');
+        const hero = $('#hero');
+        const sidebar = $('#sidebar');
+        const preview = $('#preview');
+        const chat = $('#chat');
+        const chatForm = $('#chatForm');
+        const chatInput = $('#chatInput');
+        const sendBtn = $('#sendBtn');
+        const heroForm = $('#heroForm');
+        const heroInput = $('#heroInput');
+        const buildBtn = $('#buildBtn');
+        const siteFrame = $('#siteFrame');
+        const loadingOverlay = $('#loadingOverlay');
+        const previewAddr = $('#previewAddr');
+        const refreshBtn = $('#refreshBtn');
+        const placeMeta = $('#placeMeta');
+
+        // ============================================================================
+        // Helper Functions
+        // ============================================================================
+
+        function pushMessage(role, text) {
+            const msg = document.createElement('div');
+            msg.className = `msg ${role}`;
+            msg.innerHTML = `
+    <div class="avatar"></div>
+    <div class="bubble">${escapeHtml(text)}</div>
+  `;
+            chat.appendChild(msg);
+            chat.scrollTop = chat.scrollHeight;
+        }
+
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+
+        function showLoading(show) {
+            loadingOverlay.classList.toggle('show', show);
+        }
+
+        function setInputDisabled(disabled) {
+            chatInput.disabled = disabled;
+            sendBtn.disabled = disabled;
+            heroInput.disabled = disabled;
+            buildBtn.disabled = disabled;
+        }
+
+        function transitionToBuilder() {
+            hero.classList.add('hidden');
+            sidebar.classList.add('show');
+            preview.classList.add('show');
+            app.classList.add('has-site');
+        }
+
+        function updatePreview() {
+            if (!siteId) return;
+            const url = `/sites/${siteId}/public/index.html?t=${Date.now()}`;
+            siteFrame.src = url;
+            previewAddr.textContent = url;
+        }
+
+        // ============================================================================
+        // API Calls
+        // ============================================================================
+
+        async function initSession() {
+            try {
+                const resp = await fetch('/session/init', { method: 'POST' });
+                const data = await resp.json();
+                siteId = data.site_id;
+                console.log('Session initialized:', siteId);
+            } catch (e) {
+                console.error('Failed to init session:', e);
+            }
+        }
+
+        async function buildSite(spec) {
+            if (isBuilding) return;
+            isBuilding = true;
+
+            transitionToBuilder();
+            pushMessage('user', spec);
+            pushMessage('bot', '🔧 Building your website... This may take a minute.');
+            setInputDisabled(true);
+            showLoading(true);
+
+            // Show initial preview
+            if (siteId) updatePreview();
+
+            try {
+                const resp = await fetch('/build', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        spec: spec,
+                        site_id: siteId,
+                        place_id: selectedPlaceId,
+                    }),
+                });
+
+                const data = await resp.json();
+
+                if (data.success) {
+                    siteId = data.site_id;
+                    pushMessage('bot', `✅ Website created! (${data.files.length} files)\n\n${data.response}`);
+                    updatePreview();
+                } else {
+                    pushMessage('bot', `❌ Build failed: ${data.error || 'Unknown error'}`);
+                }
+            } catch (e) {
+                pushMessage('bot', `❌ Error: ${e.message}`);
+            } finally {
+                isBuilding = false;
+                setInputDisabled(false);
+                showLoading(false);
+                chatInput.focus();
+            }
+        }
+
+        async function modifySite(instruction) {
+            if (isBuilding || !siteId) return;
+            isBuilding = true;
+
+            pushMessage('user', instruction);
+            pushMessage('bot', '🔧 Applying changes...');
+            setInputDisabled(true);
+            showLoading(true);
+
+            try {
+                const resp = await fetch('/modify', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        site_id: siteId,
+                        instruction: instruction,
+                        place_id: selectedPlaceId,
+                    }),
+                });
+
+                const data = await resp.json();
+
+                if (data.success) {
+                    pushMessage('bot', `✅ Changes applied!\n\n${data.response}`);
+                    updatePreview();
+                } else {
+                    pushMessage('bot', `❌ Modification failed: ${data.error || 'Unknown error'}`);
+                }
+            } catch (e) {
+                pushMessage('bot', `❌ Error: ${e.message}`);
+            } finally {
+                isBuilding = false;
+                setInputDisabled(false);
+                showLoading(false);
+                chatInput.focus();
+            }
+        }
+
+        // ============================================================================
+        // Event Handlers
+        // ============================================================================
+
+        heroForm.addEventListener('submit', (e) => {
+            e.preventDefault();
+            const spec = heroInput.value.trim();
+            if (!spec) return;
+            buildSite(spec);
+        });
+
+        chatForm.addEventListener('submit', (e) => {
+            e.preventDefault();
+            const instruction = chatInput.value.trim();
+            if (!instruction) return;
+            chatInput.value = '';
+
+            if (!siteId) {
+                buildSite(instruction);
+            } else {
+                modifySite(instruction);
+            }
+        });
+
+        refreshBtn.addEventListener('click', () => {
+            updatePreview();
+        });
+
+        // Tips click handler
+        document.querySelectorAll('.tip').forEach(tip => {
+            tip.addEventListener('click', () => {
+                heroInput.value = tip.textContent;
+                heroInput.focus();
+            });
+        });
+
+        // Auto-resize textareas
+        [heroInput, chatInput].forEach(textarea => {
+            textarea.addEventListener('input', function () {
+                this.style.height = 'auto';
+                this.style.height = Math.min(this.scrollHeight, 120) + 'px';
+            });
+        });
+
+        // Enter to submit (Shift+Enter for newline)
+        [heroInput, chatInput].forEach(textarea => {
+            textarea.addEventListener('keydown', function (e) {
+                if (e.key === 'Enter' && !e.shiftKey) {
+                    e.preventDefault();
+                    this.form.requestSubmit();
+                }
+            });
+        });
+
+        // ============================================================================
+        // Google Places Integration
+        // ============================================================================
+
+        function initPlacePicker() {
+            const input = $('#pac-input');
+            const mapEl = $('#map');
+
+            if (!window.google || !google.maps || !google.maps.places) {
+                placeMeta.textContent = 'Google Maps not available. Continue without business selection.';
+                return;
+            }
+
+            const map = new google.maps.Map(mapEl, {
+                center: { lat: 40.7128, lng: -74.0060 },
+                zoom: 12,
+                disableDefaultUI: true,
+                zoomControl: true,
+            });
+
+            const autocomplete = new google.maps.places.Autocomplete(input, {
+                fields: ['place_id', 'geometry', 'formatted_address', 'name'],
+            });
+            autocomplete.bindTo('bounds', map);
+
+            const marker = new google.maps.Marker({ map: map });
+
+            autocomplete.addListener('place_changed', function () {
+                const place = autocomplete.getPlace();
+
+                if (!place.geometry || !place.geometry.location) {
+                    placeMeta.textContent = 'Place has no location data.';
+                    return;
+                }
+
+                if (place.geometry.viewport) {
+                    map.fitBounds(place.geometry.viewport);
+                } else {
+                    map.setCenter(place.geometry.location);
+                    map.setZoom(17);
+                }
+
+                marker.setPosition(place.geometry.location);
+                marker.setVisible(true);
+
+                selectedPlaceId = place.place_id;
+                selectedPlaceName = place.name || '';
+
+                placeMeta.innerHTML = `
+      <strong>${place.name}</strong><br>
+      ${place.formatted_address || ''}<br>
+      <span style="color: var(--accent-2);">✓ Business selected</span>
+    `;
+            });
+
+            // Click on map POIs
+            map.addListener('click', function (e) {
+                if (e.placeId) {
+                    e.stop();
+                    const service = new google.maps.places.PlacesService(map);
+                    service.getDetails({
+                        placeId: e.placeId,
+                        fields: ['place_id', 'geometry', 'formatted_address', 'name'],
+                    }, function (place, status) {
+                        if (status === google.maps.places.PlacesServiceStatus.OK) {
+                            selectedPlaceId = place.place_id;
+                            selectedPlaceName = place.name || '';
+
+                            map.setCenter(place.geometry.location);
+                            map.setZoom(17);
+                            marker.setPosition(place.geometry.location);
+                            marker.setVisible(true);
+
+                            placeMeta.innerHTML = `
+            <strong>${place.name}</strong><br>
+            ${place.formatted_address || ''}<br>
+            <span style="color: var(--accent-2);">✓ Business selected</span>
+          `;
+                        }
+                    });
+                }
+            });
+        }
+
+        function loadMapsApi() {
+            fetch('/config')
+                .then(r => r.json())
+                .then(cfg => {
+                    if (!cfg.maps_api_key) {
+                        placeMeta.textContent = 'No Maps API key configured. Continue without business selection.';
+                        return;
+                    }
+
+                    const script = document.createElement('script');
+                    script.src = `https://maps.googleapis.com/maps/api/js?key=${encodeURIComponent(cfg.maps_api_key)}&libraries=places&callback=initPlacePicker`;
+                    script.async = true;
+                    script.defer = true;
+                    script.onerror = function () {
+                        placeMeta.textContent = 'Failed to load Google Maps. Continue without business selection.';
+                    };
+                    document.head.appendChild(script);
+                })
+                .catch(() => {
+                    placeMeta.textContent = 'Failed to get config. Continue without business selection.';
+                });
+        }
+
+        window.initPlacePicker = initPlacePicker;
+
+        // ============================================================================
+        // Initialize
+        // ============================================================================
+
+        initSession();
+        loadMapsApi();
+    </script>
+
+</body>
+
+</html>
